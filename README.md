@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌱 TaniCerdas
 
-## Getting Started
+Aplikasi manajemen pertanian dan peternakan terpadu berbasis web. Dirancang untuk membantu petani memantau kebun, kandang, keuangan, dan jadwal dalam satu platform — lengkap dengan panduan bertani, ensiklopedi pupuk, dan diagnosa penyakit tanaman.
 
-First, run the development server:
+## Fitur
+
+### 📊 Dashboard
+
+Ringkasan real-time: statistik tanaman aktif, produksi telur, laba bersih, grafik arus keuangan & produksi, serta jadwal mendatang.
+
+### 🌱 Kebun (`/kebun`)
+
+Manajemen tanaman: tambah/edit/hapus, lacak fase pertumbuhan (Semai → Panen), catatan harian, hasil panen, dan export CSV.
+
+### 🐔 Peternakan (`/ternak`)
+
+Manajemen kandang ayam: produksi telur harian, pemberian pakan, grafik produksi, dan export data.
+
+### 💰 Keuangan (`/keuangan`)
+
+Pencatatan transaksi pemasukan/pengeluaran, grafik arus kas, pie chart kategori, dan filter periode.
+
+### � Panduan Bertani (`/panduan`)
+
+Panduan lengkap per tanaman (cabai, melon, semangka, timun):
+
+- Fase tumbuh dari semai hingga panen dengan ciri fisik dan fokus perawatan konkret
+- Jadwal pemupukan lengkap dengan nama produk, dosis, dan cara aplikasi
+- Ensiklopedi pupuk (organik, kimia makro/mikro, hayati)
+- Pestisida & agrokimia dengan info masa karensa
+- Diagnosa penyakit tanaman
+- Ilmu dasar: unsur hara N/P/K/Ca/Mg/B, konsep pupuk, dan kamus istilah (HSS, HST, prung, vegetatif, generatif, dll)
+
+### � Planner (`/planner`)
+
+Kalender kegiatan kebun dan kandang: semai, pemupukan, penyemprotan, vaksinasi, panen, dll.
+
+### 🧮 Kalkulator (`/kalkulator`)
+
+- Kebutuhan pupuk cabai berdasarkan luas lahan
+- Kebutuhan dan biaya pakan ayam
+- Break Even Point (BEP), ROI, dan margin usaha
+- Konversi satuan pertanian (berat, luas, volume)
+
+## Teknologi
+
+| Kategori        | Stack                      |
+| --------------- | -------------------------- |
+| Framework       | Next.js 15 (App Router)    |
+| Bahasa          | TypeScript 5               |
+| Styling         | Tailwind CSS 4             |
+| Komponen        | shadcn/ui + Radix UI       |
+| Grafik          | Recharts                   |
+| Ikon            | Lucide React               |
+| State & Storage | React state + localStorage |
+
+Tidak ada backend — semua data disimpan di `localStorage` browser.
+
+## Menjalankan Proyek
 
 ```bash
+# Install dependensi
+npm install
+
+# Development
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build produksi
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Struktur
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                    # Halaman (Next.js App Router)
+│   ├── page.tsx            # Dashboard
+│   ├── kebun/              # Manajemen kebun
+│   ├── ternak/             # Manajemen peternakan
+│   ├── keuangan/           # Pencatatan keuangan
+│   ├── panduan/            # Panduan bertani
+│   ├── panduan-ternak/     # Panduan beternak
+│   ├── planner/            # Planner tanam
+│   └── kalkulator/         # Kalkulator budidaya
+├── components/
+│   ├── layout/             # AppShell, Header, Sidebar
+│   └── ui/                 # Button, Toast, ConfirmDialog
+└── lib/
+    ├── panduan/            # Data panduan: pupuk, penyakit, tanaman, ternak
+    ├── types.ts            # Type & interface
+    ├── store.ts            # localStorage helpers
+    ├── mockData.ts         # Seed data awal
+    └── utils.ts            # Utility functions
+```
 
-## Learn More
+## Lisensi
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
