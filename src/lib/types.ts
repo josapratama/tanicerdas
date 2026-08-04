@@ -96,17 +96,6 @@ export interface Transaksi {
 // ============= PENYAKIT =============
 export type TipePenyakit = "tanaman" | "ayam";
 
-export interface PenyakitInfo {
-  id: string;
-  nama: string;
-  tipe: TipePenyakit;
-  jenisTanaman?: string; // cth: "Cabai", "Semangka", "Melon" — null berarti semua tanaman
-  gejala: string[];
-  penyebab: string;
-  pencegahan: string[];
-  pengobatan: string[];
-}
-
 export interface InsidenPenyakit {
   id: string;
   penyakitId: string;
