@@ -204,7 +204,7 @@ export default function PlannerPage() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: "Total Event", val: events.length },
           { label: "Mendatang", val: upcoming.length },
@@ -218,10 +218,12 @@ export default function PlannerPage() {
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-card border border-border rounded-2xl p-4 shadow-sm"
+            className="bg-card border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow"
           >
-            <p className="text-2xl font-bold text-foreground">{s.val}</p>
-            <p className="text-xs text-muted-foreground">{s.label}</p>
+            <p className="text-2xl font-extrabold text-foreground">{s.val}</p>
+            <p className="text-xs font-medium text-muted-foreground mt-0.5">
+              {s.label}
+            </p>
           </div>
         ))}
       </div>
@@ -445,55 +447,65 @@ export default function PlannerPage() {
           <div className="space-y-2">
             {filteredList
               .sort((a, b) => a.tanggal.localeCompare(b.tanggal))
-              .map((e) => (
-                <div
-                  key={e.id}
-                  className="bg-card border border-border rounded-2xl p-4 flex items-start gap-3"
-                >
-                  <button
-                    onClick={() => handleToggle(e.id)}
-                    className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${e.selesai ? "bg-green-500 border-green-500 text-white" : "border-muted-foreground"}`}
+              .map((e) => {
+                const isOverdue = !e.selesai && e.tanggal < todayStr;
+                return (
+                  <div
+                    key={e.id}
+                    className={`bg-card border rounded-2xl p-4 flex items-start gap-3 ${isOverdue ? "border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-900/10" : "border-border"}`}
                   >
-                    {e.selesai && <Check className="w-3 h-3" />}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => handleToggle(e.id)}
+                      className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${e.selesai ? "bg-green-500 border-green-500 text-white" : isOverdue ? "border-red-400" : "border-muted-foreground"}`}
+                    >
+                      {e.selesai && <Check className="w-3 h-3" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p
+                          className={`font-medium ${e.selesai ? "line-through text-muted-foreground" : "text-foreground"}`}
+                        >
+                          {e.judul}
+                        </p>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${jenisConfig[e.jenisEvent].color}`}
+                        >
+                          {jenisConfig[e.jenisEvent].label}
+                        </span>
+                        {isOverdue && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+                            ⚠ Terlewat
+                          </span>
+                        )}
+                      </div>
                       <p
-                        className={`font-medium ${e.selesai ? "line-through text-muted-foreground" : "text-foreground"}`}
+                        className={`text-xs mt-1 ${isOverdue ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}
                       >
-                        {e.judul}
+                        {format(parseDate(e.tanggal), "EEEE, d MMMM yyyy", {
+                          locale: id,
+                        })}
                       </p>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${jenisConfig[e.jenisEvent].color}`}
-                      >
-                        {jenisConfig[e.jenisEvent].label}
-                      </span>
+                      {e.deskripsi && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {e.deskripsi}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {format(parseDate(e.tanggal), "EEEE, d MMMM yyyy", {
-                        locale: id,
-                      })}
-                    </p>
-                    {e.deskripsi && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {e.deskripsi}
-                      </p>
-                    )}
+                    <button
+                      onClick={() => openEdit(e)}
+                      className="shrink-0 p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(e.id)}
+                      className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => openEdit(e)}
-                    className="shrink-0 p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(e.id)}
-                    className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             {filteredList.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <CalendarDays className="w-10 h-10 mx-auto mb-2 opacity-30" />
