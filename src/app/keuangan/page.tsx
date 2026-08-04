@@ -333,37 +333,37 @@ export default function KeuanganPage() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-xl bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Total Pemasukan
             </span>
           </div>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-2xl font-extrabold text-green-600">
             Rp {pemasukan.toLocaleString("id")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Semua waktu</p>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-xl bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">
               <TrendingDown className="w-5 h-5" />
             </div>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Total Pengeluaran
             </span>
           </div>
-          <p className="text-2xl font-bold text-red-500">
+          <p className="text-2xl font-extrabold text-red-500">
             Rp {pengeluaran.toLocaleString("id")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Semua waktu</p>
         </div>
         <div
-          className={`border rounded-2xl p-5 shadow-sm ${laba >= 0 ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"}`}
+          className={`border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow ${laba >= 0 ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"}`}
         >
           <div className="flex items-center gap-3 mb-3">
             <div
@@ -371,10 +371,12 @@ export default function KeuanganPage() {
             >
               <Wallet className="w-5 h-5" />
             </div>
-            <span className="text-sm text-muted-foreground">Laba / Rugi</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Laba / Rugi
+            </span>
           </div>
           <p
-            className={`text-2xl font-bold ${laba >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600"}`}
+            className={`text-2xl font-extrabold ${laba >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600"}`}
           >
             {laba >= 0 ? "+" : "-"}Rp {Math.abs(laba).toLocaleString("id")}
           </p>
@@ -634,11 +636,34 @@ export default function KeuanganPage() {
                 className="px-3 py-1.5 rounded-xl border border-input bg-background text-xs flex-1 sm:flex-none"
               >
                 <option value="semua">Semua Kategori</option>
-                {kategoriOptions.map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v.label}
-                  </option>
-                ))}
+                {filterTipe === "semua" ? (
+                  <>
+                    <optgroup label="── Pemasukan ──">
+                      {Object.entries(kategoriConfig)
+                        .filter(([, v]) => v.tipe === "pemasukan")
+                        .map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {v.emoji} {v.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="── Pengeluaran ──">
+                      {Object.entries(kategoriConfig)
+                        .filter(([, v]) => v.tipe === "pengeluaran")
+                        .map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {v.emoji} {v.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  </>
+                ) : (
+                  kategoriOptions.map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.emoji} {v.label}
+                    </option>
+                  ))
+                )}
               </select>
               {filterPeriode !== "semua" && (
                 <div className="flex gap-3 text-xs ml-auto">
@@ -720,7 +745,20 @@ export default function KeuanganPage() {
               <h3 className="font-bold text-foreground">
                 {editId ? "Edit Transaksi" : "Tambah Transaksi"}
               </h3>
-              <button onClick={() => setShowForm(false)}>
+              <button
+                onClick={() => {
+                  setShowForm(false);
+                  setEditId(null);
+                  setErrors({});
+                  setForm({
+                    tanggal: format(new Date(), "yyyy-MM-dd"),
+                    tipe: "pemasukan",
+                    kategori: "penjualan_tanaman",
+                    jumlah: "",
+                    deskripsi: "",
+                  });
+                }}
+              >
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
@@ -736,8 +774,12 @@ export default function KeuanganPage() {
                       const tipe = e.target.value as TipeTransaksi;
                       const firstKat = Object.entries(kategoriConfig).find(
                         ([, v]) => v.tipe === tipe,
-                      )?.[0] as KategoriTransaksi;
-                      setForm({ ...form, tipe, kategori: firstKat });
+                      )?.[0] as KategoriTransaksi | undefined;
+                      if (firstKat) {
+                        setForm({ ...form, tipe, kategori: firstKat });
+                      } else {
+                        setForm({ ...form, tipe });
+                      }
                     }}
                     className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
                   >
