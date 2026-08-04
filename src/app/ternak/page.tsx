@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Plus,
   Bird,
@@ -56,6 +56,8 @@ export default function TernakPage() {
   const setProduksi = useAppStore((s) => s.setProduksiTelur);
   const pakan = useAppStore((s) => s.pemberianPakan);
   const setPakan = useAppStore((s) => s.setPemberianPakan);
+  const insidenList = useAppStore((s) => s.insidenPenyakit);
+  const setInsidenList = useAppStore((s) => s.setInsidenPenyakit);
 
   const today = todayString();
 
@@ -76,6 +78,19 @@ export default function TernakPage() {
   const [confirmDeletePakanId, setConfirmDeletePakanId] = useState<
     string | null
   >(null);
+  const [editProduksiId, setEditProduksiId] = useState<string | null>(null);
+  const [editProduksiForm, setEditProduksiForm] = useState({
+    jumlahTelur: "",
+    catatan: "",
+    tanggal: "",
+  });
+  const [editPakanId, setEditPakanId] = useState<string | null>(null);
+  const [editPakanForm, setEditPakanForm] = useState({
+    jenisPakan: "",
+    jumlahKg: "",
+    biaya: "",
+    tanggal: "",
+  });
   const [editKandangId, setEditKandangId] = useState<string | null>(null);
   const [showEditKandang, setShowEditKandang] = useState(false);
   const [editKandangForm, setEditKandangForm] = useState({
@@ -123,17 +138,22 @@ export default function TernakPage() {
     return d >= cutoff;
   }
 
-  const chartData = Array.from({ length: 7 }, (_, i) => {
-    const d = format(subDays(new Date(), 6 - i), "yyyy-MM-dd");
-    const label = format(subDays(new Date(), 6 - i), "EEE", { locale: id });
-    const total = produksi
-      .filter(
-        (p) =>
-          (selectedId ? p.kandangId === selectedId : true) && p.tanggal === d,
-      )
-      .reduce((s, p) => s + p.jumlahTelur, 0);
-    return { hari: label, telur: total };
-  });
+  const chartData = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = format(subDays(new Date(), 6 - i), "yyyy-MM-dd");
+        const label = format(subDays(new Date(), 6 - i), "EEE", { locale: id });
+        const total = produksi
+          .filter(
+            (p) =>
+              (selectedId ? p.kandangId === selectedId : true) &&
+              p.tanggal === d,
+          )
+          .reduce((s, p) => s + p.jumlahTelur, 0);
+        return { hari: label, telur: total };
+      }),
+    [produksi, selectedId],
+  );
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   function handleAddKandang() {
@@ -268,6 +288,13 @@ export default function TernakPage() {
     setKandang(kandang.filter((k) => k.id !== confirmDeleteKandang));
     setProduksi(produksi.filter((p) => p.kandangId !== confirmDeleteKandang));
     setPakan(pakan.filter((p) => p.kandangId !== confirmDeleteKandang));
+    // Hapus insiden penyakit terkait agar tidak orphan
+    setInsidenList(
+      insidenList.filter(
+        (i) =>
+          !(i.targetId === confirmDeleteKandang && i.targetTipe === "kandang"),
+      ),
+    );
     if (selectedId === confirmDeleteKandang) setSelectedId(null);
     setConfirmDeleteKandang(null);
     showToast("Kandang berhasil dihapus", "success");
@@ -285,6 +312,73 @@ export default function TernakPage() {
     setPakan(pakan.filter((p) => p.id !== confirmDeletePakanId));
     setConfirmDeletePakanId(null);
     showToast("Data pakan dihapus", "success");
+  }
+
+  function openEditProduksi(p: ProduksiTelur) {
+    setEditProduksiId(p.id);
+    setEditProduksiForm({
+      jumlahTelur: String(p.jumlahTelur),
+      catatan: p.catatan ?? "",
+      tanggal: p.tanggal,
+    });
+  }
+
+  function handleSaveEditProduksi() {
+    if (!editProduksiId) return;
+    const n = Number(editProduksiForm.jumlahTelur);
+    if (isNaN(n) || n <= 0) {
+      showToast("Jumlah telur harus lebih dari 0", "error");
+      return;
+    }
+    setProduksi(
+      produksi.map((p) =>
+        p.id === editProduksiId
+          ? {
+              ...p,
+              jumlahTelur: n,
+              catatan: editProduksiForm.catatan || undefined,
+              tanggal: editProduksiForm.tanggal,
+            }
+          : p,
+      ),
+    );
+    setEditProduksiId(null);
+    showToast("Data produksi telur diperbarui", "success");
+  }
+
+  function openEditPakan(p: PemberianPakan) {
+    setEditPakanId(p.id);
+    setEditPakanForm({
+      jenisPakan: p.jenisPakan,
+      jumlahKg: String(p.jumlahKg),
+      biaya: String(p.biaya),
+      tanggal: p.tanggal,
+    });
+  }
+
+  function handleSaveEditPakan() {
+    if (!editPakanId) return;
+    const kg = Number(editPakanForm.jumlahKg);
+    const biaya = Number(editPakanForm.biaya);
+    if (!editPakanForm.jenisPakan.trim()) {
+      showToast("Jenis pakan wajib diisi", "error");
+      return;
+    }
+    setPakan(
+      pakan.map((p) =>
+        p.id === editPakanId
+          ? {
+              ...p,
+              jenisPakan: editPakanForm.jenisPakan,
+              jumlahKg: isNaN(kg) ? p.jumlahKg : Math.max(0, kg),
+              biaya: isNaN(biaya) ? p.biaya : Math.max(0, biaya),
+              tanggal: editPakanForm.tanggal,
+            }
+          : p,
+      ),
+    );
+    setEditPakanId(null);
+    showToast("Data pakan diperbarui", "success");
   }
 
   function exportKandangCSV() {
@@ -339,7 +433,7 @@ export default function TernakPage() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           {
             label: "Total Kandang",
@@ -362,7 +456,7 @@ export default function TernakPage() {
             color: "bg-primary/10 text-primary",
           },
           {
-            label: "Kandang Perlu Perhatian",
+            label: "Perlu Perhatian",
             val: kandang.filter((k) => k.statusKesehatan !== "baik").length,
             sub: "kandang",
             color:
@@ -371,13 +465,17 @@ export default function TernakPage() {
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-card rounded-2xl p-4 border border-border shadow-sm"
+            className="bg-card rounded-2xl p-4 border border-border shadow-sm hover:shadow-md transition-shadow"
           >
             <div className={`inline-flex p-2.5 rounded-xl mb-2 ${s.color}`}>
               <Bird className="w-5 h-5" />
             </div>
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-            <p className="text-2xl font-bold text-foreground">{s.val}</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide leading-tight">
+              {s.label}
+            </p>
+            <p className="text-2xl font-extrabold text-foreground mt-0.5">
+              {s.val}
+            </p>
             <p className="text-xs text-muted-foreground">{s.sub}</p>
           </div>
         ))}
@@ -521,7 +619,7 @@ export default function TernakPage() {
                     ) : (
                       <Clock className="w-3 h-3" />
                     )}
-                    {k.statusKesehatan.replace("_", " ")}
+                    {k.statusKesehatan.replaceAll("_", " ")}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-3 text-center">
@@ -537,12 +635,23 @@ export default function TernakPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">Kapasitas</p>
                   </div>
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-2">
-                    <p className="text-lg font-bold text-yellow-600">
-                      {telurKandang}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Telur/Hari</p>
-                  </div>
+                  {k.jenisAyam === "petelur" ? (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-2">
+                      <p className="text-lg font-bold text-yellow-600">
+                        {telurKandang}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Telur/Hari
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 rounded-xl p-2">
+                      <p className="text-lg font-bold text-foreground">
+                        {Math.round((k.jumlahAyam / k.kapasitas) * 100)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Isi</p>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -645,24 +754,89 @@ export default function TernakPage() {
                       key={p.id}
                       className="flex items-center justify-between p-3 bg-muted/50 rounded-xl text-sm"
                     >
-                      <span className="text-muted-foreground">
-                        {formatShortDate(p.tanggal)}
-                      </span>
-                      <span className="font-semibold text-yellow-600">
-                        {p.jumlahTelur} butir
-                      </span>
-                      {p.catatan && (
-                        <span className="text-xs text-muted-foreground truncate max-w-24">
-                          {p.catatan}
-                        </span>
+                      {editProduksiId === p.id ? (
+                        // ── inline edit form ──
+                        <div className="flex-1 flex flex-wrap items-center gap-2">
+                          <input
+                            type="date"
+                            value={editProduksiForm.tanggal}
+                            onChange={(e) =>
+                              setEditProduksiForm({
+                                ...editProduksiForm,
+                                tanggal: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg border border-input bg-background text-xs w-32"
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            value={editProduksiForm.jumlahTelur}
+                            onChange={(e) =>
+                              setEditProduksiForm({
+                                ...editProduksiForm,
+                                jumlahTelur: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg border border-input bg-background text-xs w-20"
+                            placeholder="Butir"
+                          />
+                          <input
+                            type="text"
+                            value={editProduksiForm.catatan}
+                            onChange={(e) =>
+                              setEditProduksiForm({
+                                ...editProduksiForm,
+                                catatan: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg border border-input bg-background text-xs flex-1 min-w-20"
+                            placeholder="Catatan"
+                          />
+                          <button
+                            onClick={handleSaveEditProduksi}
+                            className="px-2.5 py-1 bg-primary text-primary-foreground rounded-lg text-xs font-medium"
+                          >
+                            Simpan
+                          </button>
+                          <button
+                            onClick={() => setEditProduksiId(null)}
+                            className="px-2.5 py-1 bg-muted text-muted-foreground rounded-lg text-xs"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-muted-foreground">
+                            {formatShortDate(p.tanggal)}
+                          </span>
+                          <span className="font-semibold text-yellow-600">
+                            {p.jumlahTelur} butir
+                          </span>
+                          {p.catatan && (
+                            <span className="text-xs text-muted-foreground truncate max-w-24">
+                              {p.catatan}
+                            </span>
+                          )}
+                          <div className="flex gap-1 ml-2">
+                            <button
+                              onClick={() => openEditProduksi(p)}
+                              className="p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteProduksi(p.id)}
+                              className="p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Hapus"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </>
                       )}
-                      <button
-                        onClick={() => setConfirmDeleteProduksi(p.id)}
-                        className="ml-2 p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Hapus"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   ))}
                   {rows.length === 0 && (
@@ -713,29 +887,107 @@ export default function TernakPage() {
                       key={p.id}
                       className="flex items-center justify-between p-3 bg-muted/50 rounded-xl text-sm"
                     >
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {p.jenisPakan}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatShortDate(p.tanggal)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-foreground">
-                          {p.jumlahKg} kg
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Rp {p.biaya.toLocaleString("id")}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setConfirmDeletePakanId(p.id)}
-                        className="ml-2 p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Hapus"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {editPakanId === p.id ? (
+                        // ── inline edit form ──
+                        <div className="flex-1 flex flex-wrap items-center gap-2">
+                          <input
+                            type="date"
+                            value={editPakanForm.tanggal}
+                            onChange={(e) =>
+                              setEditPakanForm({
+                                ...editPakanForm,
+                                tanggal: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg border border-input bg-background text-xs w-32"
+                          />
+                          <input
+                            type="text"
+                            value={editPakanForm.jenisPakan}
+                            onChange={(e) =>
+                              setEditPakanForm({
+                                ...editPakanForm,
+                                jenisPakan: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg border border-input bg-background text-xs flex-1 min-w-24"
+                            placeholder="Jenis pakan"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={editPakanForm.jumlahKg}
+                            onChange={(e) =>
+                              setEditPakanForm({
+                                ...editPakanForm,
+                                jumlahKg: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg border border-input bg-background text-xs w-16"
+                            placeholder="kg"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={editPakanForm.biaya}
+                            onChange={(e) =>
+                              setEditPakanForm({
+                                ...editPakanForm,
+                                biaya: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg border border-input bg-background text-xs w-24"
+                            placeholder="Biaya Rp"
+                          />
+                          <button
+                            onClick={handleSaveEditPakan}
+                            className="px-2.5 py-1 bg-primary text-primary-foreground rounded-lg text-xs font-medium"
+                          >
+                            Simpan
+                          </button>
+                          <button
+                            onClick={() => setEditPakanId(null)}
+                            className="px-2.5 py-1 bg-muted text-muted-foreground rounded-lg text-xs"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {p.jenisPakan}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatShortDate(p.tanggal)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-foreground">
+                              {p.jumlahKg} kg
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Rp {p.biaya.toLocaleString("id")}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 ml-2">
+                            <button
+                              onClick={() => openEditPakan(p)}
+                              className="p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeletePakanId(p.id)}
+                              className="p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Hapus"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                   {rows.length === 0 && (
