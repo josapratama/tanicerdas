@@ -16,7 +16,14 @@ import {
   Sprout,
   Trash2,
 } from "lucide-react";
-import { Tanaman, FaseTanaman, CatatanTanaman, PanenRecord } from "@/lib/types";
+import {
+  Tanaman,
+  FaseTanaman,
+  CatatanTanaman,
+  PanenRecord,
+  Transaksi,
+  KategoriTransaksi,
+} from "@/lib/types";
 import { useAppStore, generateId } from "@/lib/store";
 import { formatShortDate } from "@/lib/utils";
 import { format } from "date-fns";
@@ -74,14 +81,18 @@ const kondisiLabel = {
 
 const JENIS_TANAMAN_OPTIONS = [
   "Cabai",
-  "Semangka",
-  "Melon",
   "Tomat",
   "Terong",
+  "Semangka",
+  "Melon",
   "Timun",
-  "Paria",
-  "Labu",
-  "Jagung",
+  "Paria / Pare",
+  "Labu Siam",
+  "Jagung Manis",
+  "Kangkung",
+  "Bayam",
+  "Singkong",
+  "Ubi Jalar",
   "Lainnya",
 ];
 
@@ -110,6 +121,10 @@ export default function KebunPage() {
   const setCatatan = useAppStore((s) => s.setCatatanTanaman);
   const panenList = useAppStore((s) => s.panenRecord);
   const setPanenList = useAppStore((s) => s.setPanenRecord);
+  const insidenList = useAppStore((s) => s.insidenPenyakit);
+  const setInsidenList = useAppStore((s) => s.setInsidenPenyakit);
+  const transaksi = useAppStore((s) => s.transaksi);
+  const setTransaksi = useAppStore((s) => s.setTransaksi);
 
   // ─── UI State ─────────────────────────────────────────────────────────────
   const [filterFase, setFilterFase] = useState<FaseTanaman | "semua">("semua");
@@ -132,6 +147,9 @@ export default function KebunPage() {
   const [showPanenForm, setShowPanenForm] = useState(false);
   const [panenTanamanId, setPanenTanamanId] = useState<string | null>(null);
   const [panenErrors, setPanenErrors] = useState<Record<string, string>>({});
+  const [confirmDeletePanenId, setConfirmDeletePanenId] = useState<
+    string | null
+  >(null);
   const [panenForm, setPanenForm] = useState({
     tanggal: format(new Date(), "yyyy-MM-dd"),
     beratKg: "",
@@ -191,9 +209,13 @@ export default function KebunPage() {
   }, [tanaman, catatan, panenList]);
 
   const selected = tanaman.find((t) => t.id === selectedId);
-  const selectedCatatan = catatan
-    .filter((c) => c.tanamanId === selectedId)
-    .sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+  const selectedCatatan = useMemo(
+    () =>
+      catatan
+        .filter((c) => c.tanamanId === selectedId)
+        .sort((a, b) => b.tanggal.localeCompare(a.tanggal)),
+    [catatan, selectedId],
+  );
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   function openAddTanaman() {
@@ -252,7 +274,7 @@ export default function KebunPage() {
         varietas: form.varietas,
         fase: form.fase,
         tanggalSemai: form.tanggalSemai,
-        luasLahan: luas || 100,
+        luasLahan: isNaN(luas) || luas <= 0 ? 100 : luas,
         lokasiKebun: form.lokasiKebun,
         catatan: [],
         createdAt: new Date().toISOString(),
@@ -269,8 +291,13 @@ export default function KebunPage() {
     if (!confirmDeleteId) return;
     setTanaman(tanaman.filter((t) => t.id !== confirmDeleteId));
     setCatatan(catatan.filter((c) => c.tanamanId !== confirmDeleteId));
-    // Bug fix: hapus juga data panen terkait
     setPanenList(panenList.filter((p) => p.tanamanId !== confirmDeleteId));
+    // Hapus insiden penyakit terkait agar tidak orphan
+    setInsidenList(
+      insidenList.filter(
+        (i) => !(i.targetId === confirmDeleteId && i.targetTipe === "tanaman"),
+      ),
+    );
     if (selectedId === confirmDeleteId) setSelectedId(null);
     setConfirmDeleteId(null);
     showToast("Tanaman berhasil dihapus", "success");
@@ -378,11 +405,31 @@ export default function KebunPage() {
       createdAt: new Date().toISOString(),
     };
     setPanenList([...panenList, record]);
+    // Otomatis tambah transaksi penjualan ke keuangan
+    const tNama = tanaman.find((t) => t.id === panenTanamanId)?.nama ?? "Panen";
+    const newTx: Transaksi = {
+      id: generateId(),
+      tanggal: panenForm.tanggal,
+      tipe: "pemasukan",
+      kategori: "penjualan_tanaman" as KategoriTransaksi,
+      jumlah: Math.round(berat * harga),
+      deskripsi: `Panen ${tNama} – ${berat} kg @ Rp ${harga.toLocaleString("id")}/kg`,
+      createdAt: new Date().toISOString(),
+    };
+    setTransaksi([...transaksi, newTx]);
     setShowPanenForm(false);
+    setPanenTanamanId(null);
     showToast(
-      `Panen ${berat} kg dicatat · Rp ${(berat * harga).toLocaleString("id")}`,
+      `Panen ${berat} kg dicatat · Rp ${(berat * harga).toLocaleString("id")} ditambah ke Keuangan`,
       "success",
     );
+  }
+
+  function doDeletePanen() {
+    if (!confirmDeletePanenId) return;
+    setPanenList(panenList.filter((p) => p.id !== confirmDeletePanenId));
+    setConfirmDeletePanenId(null);
+    showToast("Data panen dihapus", "success");
   }
 
   function exportKebunCSV() {
@@ -688,7 +735,7 @@ export default function KebunPage() {
                 >
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
-                {t.fase === "panen" && (
+                {(t.fase === "panen" || t.fase === "berbuah") && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -814,6 +861,13 @@ export default function KebunPage() {
                             Rp {p.hargaPerKg.toLocaleString("id")}/kg
                           </p>
                         </div>
+                        <button
+                          onClick={() => setConfirmDeletePanenId(p.id)}
+                          className="ml-2 p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors self-center"
+                          title="Hapus panen"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                 </div>
@@ -1004,7 +1058,9 @@ export default function KebunPage() {
               <button
                 onClick={() => {
                   setShowForm(false);
+                  setEditTanamanId(null);
                   setFormErrors({});
+                  setForm(emptyTanamanForm());
                 }}
               >
                 <X className="w-5 h-5 text-muted-foreground" />
@@ -1131,7 +1187,9 @@ export default function KebunPage() {
               <button
                 onClick={() => {
                   setShowForm(false);
+                  setEditTanamanId(null);
                   setFormErrors({});
+                  setForm(emptyTanamanForm());
                 }}
                 className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
               >
@@ -1153,7 +1211,13 @@ export default function KebunPage() {
                   {tanaman.find((t) => t.id === panenTanamanId)?.nama}
                 </p>
               </div>
-              <button onClick={() => setShowPanenForm(false)}>
+              <button
+                onClick={() => {
+                  setShowPanenForm(false);
+                  setPanenTanamanId(null);
+                  setPanenErrors({});
+                }}
+              >
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
@@ -1257,7 +1321,11 @@ export default function KebunPage() {
                 Simpan
               </button>
               <button
-                onClick={() => setShowPanenForm(false)}
+                onClick={() => {
+                  setShowPanenForm(false);
+                  setPanenTanamanId(null);
+                  setPanenErrors({});
+                }}
                 className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
               >
                 Batal
@@ -1280,6 +1348,13 @@ export default function KebunPage() {
         message="Yakin hapus catatan ini?"
         onConfirm={doDeleteCatatan}
         onCancel={() => setConfirmDeleteCatatanId(null)}
+      />
+      <ConfirmDialog
+        open={confirmDeletePanenId !== null}
+        title="Hapus Data Panen"
+        message="Yakin hapus data panen ini? Aksi ini tidak bisa dibatalkan."
+        onConfirm={doDeletePanen}
+        onCancel={() => setConfirmDeletePanenId(null)}
       />
     </div>
   );
