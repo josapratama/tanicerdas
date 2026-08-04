@@ -38,22 +38,40 @@ function StatCard({
   value,
   sub,
   color,
+  trend,
 }: {
   icon: React.ElementType;
   label: string;
   value: string | number;
   sub?: string;
   color: string;
+  trend?: "up" | "down";
 }) {
   return (
-    <div className="bg-card rounded-2xl p-5 border border-border flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className={`p-3 rounded-xl ${color}`}>
+    <div className="bg-card rounded-2xl p-5 border border-border flex items-start gap-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group">
+      <div
+        className={`p-3 rounded-2xl ${color} group-hover:scale-110 transition-transform duration-200 shrink-0`}
+      >
         <Icon className="w-6 h-6" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold text-foreground mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {label}
+        </p>
+        <p className="text-2xl font-extrabold text-foreground mt-0.5 leading-tight">
+          {value}
+        </p>
+        {sub && (
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            {trend === "up" && (
+              <TrendingUp className="w-3 h-3 text-green-500" />
+            )}
+            {trend === "down" && (
+              <TrendingDown className="w-3 h-3 text-red-500" />
+            )}
+            {sub}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -189,6 +207,33 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Banner */}
+      <div className="relative rounded-2xl overflow-hidden bg-linear-to-br from-primary via-primary/80 to-primary/60 text-primary-foreground p-5 sm:p-7">
+        <div className="absolute inset-0 opacity-10 pointer-events-none select-none">
+          <div className="absolute top-2 right-8 text-7xl">🌱</div>
+          <div className="absolute bottom-2 right-28 text-5xl">🐔</div>
+          <div className="absolute top-6 right-44 text-4xl hidden sm:block">
+            🥚
+          </div>
+        </div>
+        <div className="relative z-10">
+          <p className="text-sm opacity-80 font-medium mb-1">
+            {new Date().toLocaleDateString("id-ID", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold leading-tight">
+            Selamat Datang, Pak Tani 👋
+          </h2>
+          <p className="text-sm opacity-80 mt-2 max-w-md">
+            Pantau kebun &amp; peternakan Anda dalam satu dasbor terpadu.
+          </p>
+        </div>
+      </div>
+
       {/* Banner jadwal hari ini */}
       {todayEvents.length > 0 && (
         <div className="bg-primary/10 border border-primary/30 rounded-2xl px-4 py-3 flex items-start gap-3">
@@ -207,13 +252,14 @@ export default function DashboardPage() {
       )}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           icon={Leaf}
           label="Tanaman Aktif"
           value={tanaman.filter((t) => t.fase !== "panen").length}
           sub={`${tanaman.length} total tanaman`}
           color="bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400"
+          trend="up"
         />
         <StatCard
           icon={Bird}
@@ -228,6 +274,7 @@ export default function DashboardPage() {
           value={telurHariIni.toLocaleString("id")}
           sub="butir terkumpul"
           color="bg-yellow-100 text-yellow-600 dark:bg-yellow-900/40 dark:text-yellow-400"
+          trend="up"
         />
         <StatCard
           icon={TrendingUp}
@@ -235,6 +282,7 @@ export default function DashboardPage() {
           value={`Rp ${((pemasukan - pengeluaran) / 1_000_000).toFixed(1)}jt`}
           sub={`dari ${transaksi.length} transaksi`}
           color="bg-primary/10 text-primary"
+          trend={pemasukan >= pengeluaran ? "up" : "down"}
         />
       </div>
 
@@ -397,7 +445,10 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {tanaman.slice(0, 5).map((t) => {
-              const badge = faseBadge[t.fase];
+              const badge = faseBadge[t.fase] ?? {
+                label: t.fase,
+                cls: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+              };
               const latestCatatan = catatanList
                 .filter((c) => c.tanamanId === t.id)
                 .sort((a, b) => b.tanggal.localeCompare(a.tanggal))[0];
@@ -494,59 +545,68 @@ export default function DashboardPage() {
           <Bird className="w-4 h-4 text-primary" />
           <h3 className="font-semibold text-foreground">Status Kandang</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {kandang.map((k) => {
-            const pct = Math.min(
-              100,
-              Math.round((k.jumlahAyam / k.kapasitas) * 100),
-            );
-            const statusCls = {
-              baik: "text-green-600 bg-green-100 dark:bg-green-900/40 dark:text-green-400",
-              perlu_perhatian:
-                "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/40 dark:text-yellow-400",
-              kritis:
-                "text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-400",
-            }[k.statusKesehatan];
-            const statusIcon =
-              k.statusKesehatan === "baik" ? (
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              ) : k.statusKesehatan === "kritis" ? (
-                <AlertTriangle className="w-3.5 h-3.5" />
-              ) : (
-                <Clock className="w-3.5 h-3.5" />
+        {kandang.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            Belum ada kandang
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {kandang.map((k) => {
+              const pct = Math.min(
+                100,
+                Math.round((k.jumlahAyam / k.kapasitas) * 100),
               );
-            return (
-              <div
-                key={k.id}
-                className="p-4 rounded-xl border border-border bg-muted/30"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <p className="text-sm font-semibold text-foreground leading-tight">
-                    {k.nama}
+              const statusCls =
+                (
+                  {
+                    baik: "text-green-600 bg-green-100 dark:bg-green-900/40 dark:text-green-400",
+                    perlu_perhatian:
+                      "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/40 dark:text-yellow-400",
+                    kritis:
+                      "text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-400",
+                  } as Record<string, string>
+                )[k.statusKesehatan] ?? "text-gray-600 bg-gray-100";
+              const statusIcon =
+                k.statusKesehatan === "baik" ? (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                ) : k.statusKesehatan === "kritis" ? (
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                ) : (
+                  <Clock className="w-3.5 h-3.5" />
+                );
+              return (
+                <div
+                  key={k.id}
+                  className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-sm font-semibold text-foreground leading-tight">
+                      {k.nama}
+                    </p>
+                    <span
+                      className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-2 ${statusCls}`}
+                    >
+                      {statusIcon}
+                      {k.statusKesehatan.replace("_", " ")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {k.jenisAyam} · {k.jumlahAyam}/{k.kapasitas} ekor
                   </p>
-                  <span
-                    className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${statusCls}`}
-                  >
-                    {statusIcon}
-                    {k.statusKesehatan.replace("_", " ")}
-                  </span>
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {pct}% kapasitas
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">
-                  {k.jenisAyam} · {k.jumlahAyam}/{k.kapasitas} ekor
-                </p>
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {pct}% kapasitas
-                </p>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
