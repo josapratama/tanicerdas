@@ -1144,6 +1144,9 @@ function IlmuDasarSection({
   const [activeSection, setActiveSection] = useState<
     "unsur" | "konsep" | "glosarium"
   >("unsur");
+  const [filterGlosarium, setFilterGlosarium] = useState<
+    EntriGlosarium["kategori"] | "semua"
+  >("semua");
   const makroPrimer = dataUnsurHara.filter((u) => u.tipe === "makro_primer");
   const makroSekunder = dataUnsurHara.filter(
     (u) => u.tipe === "makro_sekunder",
@@ -1296,8 +1299,14 @@ function IlmuDasarSection({
             tanaman merujuk ke sini — tidak perlu dijelaskan berulang di setiap
             tanaman.
           </p>
-          {/* Filter per kategori */}
+          {/* Filter per kategori — fungsional */}
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilterGlosarium("semua")}
+              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${filterGlosarium === "semua" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            >
+              Semua
+            </button>
             {(
               [
                 "waktu",
@@ -1308,48 +1317,54 @@ function IlmuDasarSection({
             ).map((k) => {
               const { label, cls } = kategoriGlos[k];
               return (
-                <span
+                <button
                   key={k}
-                  className={`text-xs px-2.5 py-1 rounded-full font-medium ${cls}`}
+                  onClick={() => setFilterGlosarium(k)}
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${filterGlosarium === k ? "bg-primary text-primary-foreground" : `${cls} hover:opacity-80`}`}
                 >
                   {label}
-                </span>
+                </button>
               );
             })}
           </div>
           <div className="space-y-2">
-            {glosariumUmum.map((g) => {
-              const { cls } = kategoriGlos[g.kategori];
-              return (
-                <div
-                  key={g.id}
-                  id={`glos-${g.id}`}
-                  className="bg-card border border-border rounded-xl p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`shrink-0 text-xs px-2 py-1 rounded-lg font-semibold ${cls} whitespace-nowrap mt-0.5`}
-                    >
-                      {kategoriGlos[g.kategori].label}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-foreground">
-                        {g.istilah}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                        {g.penjelasan}
-                      </p>
-                      {g.contoh && (
-                        <p className="text-xs text-primary mt-1.5">
-                          <span className="font-semibold">Contoh: </span>
-                          {g.contoh}
+            {glosariumUmum
+              .filter(
+                (g) =>
+                  filterGlosarium === "semua" || g.kategori === filterGlosarium,
+              )
+              .map((g) => {
+                const { cls } = kategoriGlos[g.kategori];
+                return (
+                  <div
+                    key={g.id}
+                    id={`glos-${g.id}`}
+                    className="bg-card border border-border rounded-xl p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={`shrink-0 text-xs px-2 py-1 rounded-lg font-semibold ${cls} whitespace-nowrap mt-0.5`}
+                      >
+                        {kategoriGlos[g.kategori].label}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-foreground">
+                          {g.istilah}
                         </p>
-                      )}
+                        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                          {g.penjelasan}
+                        </p>
+                        {g.contoh && (
+                          <p className="text-xs text-primary mt-1.5">
+                            <span className="font-semibold">Contoh: </span>
+                            {g.contoh}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       )}
@@ -1634,6 +1649,35 @@ function TanamanDetailPage({
               })}
             </div>
           </div>
+
+          {/* Penyakit utama */}
+          {tanaman.penyakitUtama.length > 0 && (
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                🦠 Penyakit yang Sering Menyerang
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {tanaman.penyakitUtama.map((pid) => {
+                  const p = dataPenyakitPanduan.find((x) => x.id === pid);
+                  if (!p) return null;
+                  return (
+                    <button
+                      key={pid}
+                      onClick={() => onPupukClick(pid)}
+                      className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-full font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                    >
+                      {p.emoji} {p.nama}
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Klik untuk lihat gejala, pencegahan, dan penanganan lengkap di
+                ensiklopedi penyakit.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1960,17 +2004,27 @@ export default function PanduanPage() {
       {activeTab === "tanaman" && (
         <div className="space-y-5">
           {selectedTanaman ? (
-            <TanamanDetailPage
-              tanaman={
-                dataPanduanTanaman.find((t) => t.id === selectedTanaman)!
-              }
-              onPupukClick={scrollToPupuk}
-              onBack={() => setSelectedTanaman(null)}
-              onIlmuDasarClick={() => {
+            (() => {
+              const tanamanData = dataPanduanTanaman.find(
+                (t) => t.id === selectedTanaman,
+              );
+              if (!tanamanData) {
+                // Guard: stale ID — kembali ke daftar
                 setSelectedTanaman(null);
-                setActiveTab("ilmu-dasar");
-              }}
-            />
+                return null;
+              }
+              return (
+                <TanamanDetailPage
+                  tanaman={tanamanData}
+                  onPupukClick={scrollToPupuk}
+                  onBack={() => setSelectedTanaman(null)}
+                  onIlmuDasarClick={() => {
+                    setSelectedTanaman(null);
+                    setActiveTab("ilmu-dasar");
+                  }}
+                />
+              );
+            })()
           ) : (
             <>
               <SectionHeader
@@ -2068,18 +2122,6 @@ export default function PanduanPage() {
                     </div>
                   </button>
                 ))}
-
-                {/* Coming soon card */}
-                <div className="border border-dashed border-border rounded-2xl p-5 flex flex-col items-center justify-center gap-2 opacity-60 min-h-45">
-                  <span className="text-4xl">🍅</span>
-                  <p className="font-semibold text-foreground">Tomat</p>
-                  <p className="text-xs text-muted-foreground">Segera hadir</p>
-                </div>
-                <div className="border border-dashed border-border rounded-2xl p-5 flex flex-col items-center justify-center gap-2 opacity-60 min-h-45">
-                  <span className="text-4xl">🌽</span>
-                  <p className="font-semibold text-foreground">Jagung</p>
-                  <p className="text-xs text-muted-foreground">Segera hadir</p>
-                </div>
               </div>
             </>
           )}
