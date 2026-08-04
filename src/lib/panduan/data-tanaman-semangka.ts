@@ -378,7 +378,12 @@ export const semangka: PanduanTanaman = {
     "Semangka panen sekali per musim — fokus pada kualitas satu buah terbaik per tanaman.",
   ],
 
-  penyakitUtama: [],
+  penyakitUtama: [
+    "pd-antraknosa",
+    "pd-embun-tepung",
+    "pd-layu-fusarium",
+    "pd-tungau-merah",
+  ],
   pupukUtama: [
     "pupuk-npk-mutiara",
     "pupuk-npk-phonska",

@@ -35,6 +35,21 @@ export type {
   ObatVaksinTernak,
 } from "./data-ternak";
 export { dataPanduanTanaman } from "./data-tanaman";
+export {
+  cabaiMerah,
+  melon,
+  semangka,
+  timun,
+  tomat,
+  terong,
+  jagungManis,
+  kangkung,
+  bayam,
+  paria,
+  labuSiam,
+  singkong,
+  ubiJalar,
+} from "./data-tanaman";
 export type { PanduanTanaman, FaseTumbuh, JadwalPupuk } from "./types";
 
 // Data umum bertani — glosarium, unsur hara, konsep pupuk
