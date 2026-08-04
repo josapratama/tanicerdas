@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Calculator, Leaf, Bird, TrendingUp, RefreshCw } from "lucide-react";
 
 const tabs = [
-  { id: "pupuk", label: "Pupuk Cabai", icon: Leaf },
+  { id: "pupuk", label: "Pupuk Tanaman", icon: Leaf },
   { id: "pakan", label: "Pakan Ayam", icon: Bird },
   { id: "bep", label: "Break Even Point", icon: TrendingUp },
   { id: "konversi", label: "Konversi Satuan", icon: Calculator },
@@ -80,9 +80,186 @@ function InputField({
 }
 
 // ─── Tab Pupuk ────────────────────────────────────────────────────────────────
+const PUPUK_PER_JENIS: Record<
+  string,
+  {
+    dasar: { nama: string; dosis: number; satuan: "ton/ha" | "kg/ha" }[];
+    susulan: { nama: string; dosis: number; satuan: "ton/ha" | "kg/ha" }[];
+  }
+> = {
+  Cabai: {
+    dasar: [
+      { nama: "Pupuk Kandang", dosis: 20, satuan: "ton/ha" },
+      { nama: "Dolomit / Kapur", dosis: 2, satuan: "ton/ha" },
+      { nama: "NPK Mutiara 16-16-16", dosis: 400, satuan: "kg/ha" },
+      { nama: "SP-36", dosis: 200, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "NPK 16-16-16 (susulan 1)", dosis: 200, satuan: "kg/ha" },
+      { nama: "NPK 16-16-16 (susulan 2)", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl (susulan berbuah)", dosis: 150, satuan: "kg/ha" },
+      { nama: "Urea (susulan)", dosis: 100, satuan: "kg/ha" },
+    ],
+  },
+  Tomat: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 20, satuan: "ton/ha" },
+      { nama: "Dolomit (jika pH < 6)", dosis: 1.5, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 150, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "NPK Phonska (susulan 1)", dosis: 100, satuan: "kg/ha" },
+      { nama: "Urea (susulan 2)", dosis: 50, satuan: "kg/ha" },
+      { nama: "NPK Mutiara 16-16-16 (generatif)", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl (pembesaran buah)", dosis: 150, satuan: "kg/ha" },
+    ],
+  },
+  Semangka: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 20, satuan: "ton/ha" },
+      { nama: "Dolomit", dosis: 1, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 150, satuan: "kg/ha" },
+      { nama: "NPK Phonska", dosis: 200, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "Urea (pacu sulur)", dosis: 50, satuan: "kg/ha" },
+      { nama: "NPK Mutiara (generatif)", dosis: 150, satuan: "kg/ha" },
+      { nama: "KCl (pembesaran buah)", dosis: 150, satuan: "kg/ha" },
+      { nama: "MKP 0-52-34 (pra panen)", dosis: 50, satuan: "kg/ha" },
+    ],
+  },
+  Melon: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 20, satuan: "ton/ha" },
+      { nama: "Dolomit", dosis: 1.5, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 150, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "NPK 16-16-16 (vegetatif)", dosis: 150, satuan: "kg/ha" },
+      { nama: "Urea (vegetatif)", dosis: 50, satuan: "kg/ha" },
+      { nama: "KCl (generatif)", dosis: 150, satuan: "kg/ha" },
+      { nama: "MKP (pra panen)", dosis: 50, satuan: "kg/ha" },
+    ],
+  },
+  Timun: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 15, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 150, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 100, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "Urea (vegetatif)", dosis: 50, satuan: "kg/ha" },
+      { nama: "NPK Phonska (susulan 1)", dosis: 100, satuan: "kg/ha" },
+      { nama: "KCl (generatif)", dosis: 100, satuan: "kg/ha" },
+      { nama: "NPK Mutiara (rutin)", dosis: 100, satuan: "kg/ha" },
+    ],
+  },
+  Terong: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 20, satuan: "ton/ha" },
+      { nama: "Dolomit", dosis: 1, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 150, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "NPK Phonska (susulan 1)", dosis: 100, satuan: "kg/ha" },
+      { nama: "Urea (vegetatif)", dosis: 75, satuan: "kg/ha" },
+      { nama: "NPK Mutiara (generatif)", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl (generatif)", dosis: 150, satuan: "kg/ha" },
+    ],
+  },
+  Jagung: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 10, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 200, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 100, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "Urea (susulan 1 — V4)", dosis: 150, satuan: "kg/ha" },
+      { nama: "Urea (susulan 2 — V8)", dosis: 150, satuan: "kg/ha" },
+      { nama: "NPK Phonska (susulan)", dosis: 100, satuan: "kg/ha" },
+    ],
+  },
+  Singkong: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 10, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 150, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 100, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "Urea (susulan 1)", dosis: 100, satuan: "kg/ha" },
+      { nama: "KCl (susulan 2)", dosis: 100, satuan: "kg/ha" },
+      { nama: "NPK Phonska (susulan 3)", dosis: 150, satuan: "kg/ha" },
+    ],
+  },
+  "Paria / Pare": {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 15, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 150, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "Urea (vegetatif)", dosis: 50, satuan: "kg/ha" },
+      { nama: "NPK Phonska (susulan 1)", dosis: 100, satuan: "kg/ha" },
+      { nama: "NPK Mutiara (generatif)", dosis: 100, satuan: "kg/ha" },
+      { nama: "KCl (generatif)", dosis: 50, satuan: "kg/ha" },
+    ],
+  },
+  "Labu Siam": {
+    dasar: [
+      { nama: "Pupuk Kandang Matang", dosis: 20, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 150, satuan: "kg/ha" },
+      { nama: "Dolomit", dosis: 1, satuan: "ton/ha" },
+    ],
+    susulan: [
+      { nama: "NPK Phonska (rutin bulanan)", dosis: 200, satuan: "kg/ha" },
+      { nama: "NPK Mutiara (generatif)", dosis: 150, satuan: "kg/ha" },
+      { nama: "KCl (generatif)", dosis: 100, satuan: "kg/ha" },
+    ],
+  },
+  Kangkung: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 20, satuan: "ton/ha" },
+      { nama: "NPK Phonska", dosis: 100, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "Urea (pacu daun)", dosis: 25, satuan: "kg/ha" },
+      { nama: "POC (recovery setelah panen)", dosis: 30, satuan: "kg/ha" },
+    ],
+  },
+  Bayam: {
+    dasar: [
+      { nama: "Pupuk Kandang / Kompos", dosis: 20, satuan: "ton/ha" },
+      { nama: "NPK Phonska", dosis: 100, satuan: "kg/ha" },
+    ],
+    susulan: [{ nama: "Urea (HST 10–12)", dosis: 20, satuan: "kg/ha" }],
+  },
+  "Ubi Jalar": {
+    dasar: [
+      { nama: "Pupuk Kandang Matang", dosis: 15, satuan: "ton/ha" },
+      { nama: "SP-36", dosis: 150, satuan: "kg/ha" },
+      { nama: "KCl", dosis: 100, satuan: "kg/ha" },
+    ],
+    susulan: [
+      { nama: "Urea (susulan 1)", dosis: 50, satuan: "kg/ha" },
+      { nama: "NPK Phonska (susulan 1)", dosis: 50, satuan: "kg/ha" },
+      {
+        nama: "NPK Mutiara + KCl (pembesaran umbi)",
+        dosis: 150,
+        satuan: "kg/ha",
+      },
+    ],
+  },
+};
+
+const JENIS_TANAMAN_KALKULATOR = Object.keys(PUPUK_PER_JENIS);
+
 function KalkulatorPupuk() {
   const [luas, setLuas] = useState("");
   const [jarak, setJarak] = useState("50");
+  const [jenisTanaman, setJenisTanaman] = useState("Cabai");
 
   // Clamp to positive
   const luasNum = Math.max(0, Number(luas) || 0);
@@ -90,22 +267,8 @@ function KalkulatorPupuk() {
   const jumlahLubang = luasNum / ((jarakNum / 100) * (jarakNum / 100));
   const haLahan = luasNum / 10000;
 
-  // Bug fix: dosis bertipe campuran ton/ha dan kg/ha — konversi ke kg untuk
-  // konsistensi tampilan. 1 ton = 1000 kg.
-  const pupukDasar = [
-    { nama: "Pupuk Kandang", dosis: 20, satuan: "ton/ha" as const },
-    { nama: "Dolomit / Kapur", dosis: 2, satuan: "ton/ha" as const },
-    { nama: "NPK Mutiara 16-16-16", dosis: 400, satuan: "kg/ha" as const },
-    { nama: "SP-36", dosis: 200, satuan: "kg/ha" as const },
-  ];
-  const pupukSusulan = [
-    { nama: "NPK 16-16-16 (susulan 1)", dosis: 200, satuan: "kg/ha" as const },
-    { nama: "NPK 16-16-16 (susulan 2)", dosis: 200, satuan: "kg/ha" as const },
-    { nama: "KCl (susulan berbuah)", dosis: 150, satuan: "kg/ha" as const },
-    { nama: "Urea (susulan)", dosis: 100, satuan: "kg/ha" as const },
-  ];
+  const pupukData = PUPUK_PER_JENIS[jenisTanaman] ?? PUPUK_PER_JENIS["Cabai"];
 
-  // Konversi ke kg: ton/ha × 1000 → kg/ha, lalu × haLahan
   function hitungKebutuhan(dosis: number, satuan: "ton/ha" | "kg/ha"): number {
     const dosisKg = satuan === "ton/ha" ? dosis * 1000 : dosis;
     return haLahan * dosisKg;
@@ -119,7 +282,23 @@ function KalkulatorPupuk() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">
+            Jenis Tanaman
+          </label>
+          <select
+            value={jenisTanaman}
+            onChange={(e) => setJenisTanaman(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm"
+          >
+            {JENIS_TANAMAN_KALKULATOR.map((j) => (
+              <option key={j} value={j}>
+                {j}
+              </option>
+            ))}
+          </select>
+        </div>
         <InputField
           label="Luas Lahan"
           value={luas}
@@ -157,7 +336,7 @@ function KalkulatorPupuk() {
               Pupuk Dasar (sebelum tanam)
             </h4>
             <div className="space-y-2">
-              {pupukDasar.map((p) => {
+              {pupukData.dasar.map((p) => {
                 const kg = hitungKebutuhan(p.dosis, p.satuan);
                 return (
                   <div
@@ -186,7 +365,7 @@ function KalkulatorPupuk() {
               Pupuk Susulan
             </h4>
             <div className="space-y-2">
-              {pupukSusulan.map((p) => {
+              {pupukData.susulan.map((p) => {
                 const kg = hitungKebutuhan(p.dosis, p.satuan);
                 return (
                   <div
@@ -327,26 +506,40 @@ function KalkulatorPakan() {
 function KalkulatorBEP() {
   const [modal, setModal] = useState("");
   const [biayaOp, setBiayaOp] = useState("");
+  const [biayaVariabel, setBiayaVariabel] = useState("");
   const [hargaJual, setHargaJual] = useState("");
   const [produksi, setProduksi] = useState("");
 
   // Clamp to non-negative
   const M = Math.max(0, Number(modal) || 0);
   const B = Math.max(0, Number(biayaOp) || 0);
+  const BV = Math.max(0, Number(biayaVariabel) || 0);
   const H = Math.max(0, Number(hargaJual) || 0);
   const P = Math.max(0, Number(produksi) || 0);
 
-  const totalBiaya = M + B;
+  // Biaya tetap = modal + biaya operasional
+  const biayaTetap = M + B;
+  // Margin kontribusi per unit = harga jual - biaya variabel per unit
+  const marginKontribusi = H - BV;
+  // BEP unit = biaya tetap / margin kontribusi (formula standar)
+  const bepUnit = marginKontribusi > 0 ? biayaTetap / marginKontribusi : 0;
+  // BEP rupiah = BEP unit × harga jual
+  const bepRupiah = bepUnit * H;
+
+  const totalBiaya = biayaTetap + BV * P;
   const pendapatan = H * P;
   const laba = pendapatan - totalBiaya;
-  const bepUnit = H > 0 ? totalBiaya / H : 0;
-  const bepRupiah = totalBiaya;
   const margin = pendapatan > 0 ? (laba / pendapatan) * 100 : 0;
   const roi = M > 0 ? (laba / M) * 100 : 0;
   const hasInput = (M > 0 || B > 0) && H > 0;
 
   return (
     <div className="space-y-6">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-300">
+        <strong>Rumus BEP:</strong> Unit Impas = Biaya Tetap ÷ (Harga Jual −
+        Biaya Variabel/unit). Biaya tetap = modal + biaya operasional. Biaya
+        variabel = ongkos per unit produk (benih, plastik, dll).
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <InputField
           label="Modal Investasi Awal (Rp)"
@@ -356,10 +549,17 @@ function KalkulatorBEP() {
           min="0"
         />
         <InputField
-          label="Biaya Operasional/Periode (Rp)"
+          label="Biaya Operasional Tetap/Periode (Rp)"
           value={biayaOp}
           onChange={setBiayaOp}
           placeholder="5000000"
+          min="0"
+        />
+        <InputField
+          label="Biaya Variabel per Unit (Rp)"
+          value={biayaVariabel}
+          onChange={setBiayaVariabel}
+          placeholder="5000"
           min="0"
         />
         <InputField
@@ -382,71 +582,100 @@ function KalkulatorBEP() {
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <ResultBox
-              label="Total Biaya"
-              value={`Rp ${totalBiaya.toLocaleString("id")}`}
+              label="Biaya Tetap"
+              value={`Rp ${biayaTetap.toLocaleString("id")}`}
               color="text-red-500"
             />
             <ResultBox
-              label="Pendapatan Estimasi"
-              value={`Rp ${pendapatan.toLocaleString("id")}`}
-              color="text-green-600"
+              label="Margin Kontribusi/unit"
+              value={`Rp ${marginKontribusi.toLocaleString("id")}`}
+              color={marginKontribusi > 0 ? "text-green-600" : "text-red-500"}
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <ResultBox
-              label="BEP Unit"
-              value={`${bepUnit.toFixed(0)} unit`}
+              label="BEP Unit (titik impas)"
+              value={
+                marginKontribusi > 0
+                  ? `${Math.ceil(bepUnit).toLocaleString("id")} unit`
+                  : "N/A"
+              }
               color="text-blue-600"
             />
             <ResultBox
               label="BEP Rupiah"
-              value={`Rp ${bepRupiah.toLocaleString("id")}`}
+              value={
+                marginKontribusi > 0
+                  ? `Rp ${Math.round(bepRupiah).toLocaleString("id")}`
+                  : "N/A"
+              }
               color="text-blue-600"
             />
           </div>
-          <div
-            className={`rounded-xl p-4 ${laba >= 0 ? "bg-green-50 dark:bg-green-900/20" : "bg-red-50 dark:bg-red-900/20"}`}
-          >
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-semibold text-foreground">
-                {laba >= 0 ? "🎉 Estimasi Laba" : "⚠️ Estimasi Rugi"}
-              </span>
-              <span
-                className={`text-xl font-bold ${laba >= 0 ? "text-green-600" : "text-red-500"}`}
+          {P > 0 && marginKontribusi > 0 && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <ResultBox
+                  label="Total Biaya (tetap + variabel)"
+                  value={`Rp ${totalBiaya.toLocaleString("id")}`}
+                  color="text-red-500"
+                />
+                <ResultBox
+                  label="Pendapatan Estimasi"
+                  value={`Rp ${pendapatan.toLocaleString("id")}`}
+                  color="text-green-600"
+                />
+              </div>
+              <div
+                className={`rounded-xl p-4 ${laba >= 0 ? "bg-green-50 dark:bg-green-900/20" : "bg-red-50 dark:bg-red-900/20"}`}
               >
-                Rp {Math.abs(laba).toLocaleString("id")}
-              </span>
-            </div>
-            <div className="flex gap-6 text-sm">
-              <div>
-                <span className="text-muted-foreground">Margin: </span>
-                <span className="font-semibold">{margin.toFixed(1)}%</span>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-foreground">
+                    {laba >= 0 ? "🎉 Estimasi Laba" : "⚠️ Estimasi Rugi"}
+                  </span>
+                  <span
+                    className={`text-xl font-bold ${laba >= 0 ? "text-green-600" : "text-red-500"}`}
+                  >
+                    Rp {Math.abs(laba).toLocaleString("id")}
+                  </span>
+                </div>
+                <div className="flex gap-6 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Margin: </span>
+                    <span className="font-semibold">{margin.toFixed(1)}%</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">ROI: </span>
+                    <span className="font-semibold">{roi.toFixed(1)}%</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">ROI: </span>
-                <span className="font-semibold">{roi.toFixed(1)}%</span>
+              <div className="p-4 bg-muted/50 rounded-xl text-sm text-muted-foreground">
+                Anda perlu menjual minimal{" "}
+                <span className="font-bold text-foreground">
+                  {Math.ceil(bepUnit).toLocaleString("id")} unit
+                </span>{" "}
+                dari {P.toLocaleString("id")} unit produksi untuk mencapai titik
+                impas.
+                {P >= bepUnit ? (
+                  <span className="text-green-600 font-medium">
+                    {" "}
+                    ✓ Target produksi memadai.
+                  </span>
+                ) : (
+                  <span className="text-red-500 font-medium">
+                    {" "}
+                    ✗ Produksi belum cukup untuk BEP.
+                  </span>
+                )}
               </div>
-            </div>
-          </div>
-          {P > 0 && (
-            <div className="p-4 bg-muted/50 rounded-xl text-sm text-muted-foreground">
-              Anda perlu menjual minimal{" "}
-              <span className="font-bold text-foreground">
-                {Math.ceil(bepUnit).toLocaleString("id")} unit
-              </span>{" "}
-              dari {P.toLocaleString("id")} unit produksi untuk mencapai titik
-              impas.
-              {P >= bepUnit ? (
-                <span className="text-green-600 font-medium">
-                  {" "}
-                  ✓ Target produksi memadai.
-                </span>
-              ) : (
-                <span className="text-red-500 font-medium">
-                  {" "}
-                  ✗ Produksi belum cukup untuk BEP.
-                </span>
-              )}
+            </>
+          )}
+          {marginKontribusi <= 0 && H > 0 && (
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-600 dark:text-red-400">
+              ⚠️ Harga jual lebih rendah dari atau sama dengan biaya variabel
+              per unit. BEP tidak bisa dicapai — kurangi biaya produksi atau
+              naikkan harga jual.
             </div>
           )}
         </div>
@@ -567,7 +796,7 @@ export default function KalkulatorPage() {
               className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-medium transition-all justify-center sm:flex-1 ${activeTab === tab.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
               <Icon className="w-4 h-4 shrink-0" />
-              <span className="text-xs sm:text-sm">{tab.label}</span>
+              <span className="text-xs sm:text-sm truncate">{tab.label}</span>
             </button>
           );
         })}
@@ -578,7 +807,7 @@ export default function KalkulatorPage() {
         </h2>
         <p className="text-sm text-muted-foreground mb-6">
           {activeTab === "pupuk" &&
-            "Hitung kebutuhan pupuk berdasarkan luas lahan cabai Anda"}
+            "Hitung kebutuhan pupuk berdasarkan jenis tanaman dan luas lahan Anda"}
           {activeTab === "pakan" &&
             "Hitung kebutuhan dan biaya pakan ayam harian hingga bulanan"}
           {activeTab === "bep" &&
