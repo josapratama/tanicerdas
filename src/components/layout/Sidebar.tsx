@@ -15,6 +15,7 @@ import {
   X,
   BookOpen,
   Egg,
+  Bug,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/kebun", label: "Kebun Tanaman", icon: Leaf },
   { href: "/ternak", label: "Peternakan Ayam", icon: Bird },
+  { href: "/penyakit", label: "Diagnosa Penyakit", icon: Bug },
   { href: "/kalkulator", label: "Kalkulator", icon: Calculator },
   { href: "/panduan", label: "Panduan Bertani", icon: BookOpen },
   { href: "/panduan-ternak", label: "Panduan Berternak", icon: Egg },
@@ -37,7 +39,16 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("sidebar-collapsed", String(next));
+  }
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -120,7 +131,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       {/* Collapse button — desktop only */}
       <div className="p-2 border-t border-sidebar-border hidden md:block">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggleCollapsed}
           className="flex items-center justify-center w-full py-2 rounded-xl text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors text-xs gap-2"
         >
           {collapsed ? (
@@ -141,21 +152,29 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       {/* Desktop sidebar — always visible */}
       <div className="hidden md:flex">{sidebarContent}</div>
 
-      {/* Mobile sidebar — overlay drawer */}
-      {mobileOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/50 md:hidden"
-            onClick={onMobileClose}
-            aria-hidden="true"
-          />
-          {/* Drawer */}
-          <div className="fixed inset-y-0 left-0 z-50 md:hidden flex">
-            {sidebarContent}
-          </div>
-        </>
-      )}
+      {/* Mobile sidebar — overlay drawer with animation */}
+      <>
+        {/* Backdrop */}
+        <div
+          className={cn(
+            "fixed inset-0 z-40 bg-black/50 md:hidden transition-opacity duration-300",
+            mobileOpen
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none",
+          )}
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
+        {/* Drawer */}
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 md:hidden flex transition-transform duration-300 ease-in-out",
+            mobileOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          {sidebarContent}
+        </div>
+      </>
     </>
   );
 }

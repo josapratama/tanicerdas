@@ -100,12 +100,27 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     setNotifs(getNotifications());
   }, []);
 
-  // Bug fix: subscribe to Zustand store changes for instant notification updates.
-  // Use queueMicrotask to defer the initial setState call out of the effect body
-  // and avoid the "setState synchronously within effect" warning.
+  // Optimised subscription: only re-run getNotifications() when the slices
+  // that feed into notifications actually change, not on every state mutation.
+  // We compare the relevant arrays by reference using a ref guard.
+  const prevSlicesRef = useRef<unknown[]>([]);
   useEffect(() => {
     queueMicrotask(refreshNotifs);
-    const unsubscribe = useAppStore.subscribe(() => refreshNotifs());
+    const unsubscribe = useAppStore.subscribe((state) => {
+      const next = [
+        state.kandang,
+        state.insidenPenyakit,
+        state.eventPlanner,
+        state.catatanTanaman,
+        state.produksiTelur,
+      ];
+      const prev = prevSlicesRef.current;
+      const changed = next.some((v, i) => v !== prev[i]);
+      if (changed) {
+        prevSlicesRef.current = next;
+        refreshNotifs();
+      }
+    });
     return unsubscribe;
   }, [refreshNotifs]);
 
@@ -177,16 +192,16 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
       {/* Hamburger — mobile only */}
       <button
         onClick={onMenuClick}
-        className="p-2 -ml-1 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground md:hidden"
+        className="p-2 -ml-1 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground md:hidden shrink-0"
         aria-label="Buka menu"
       >
         <Menu className="w-5 h-5" />
       </button>
-      <div className="min-w-0">
-        <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">
+      <div className="min-w-0 flex-1 mx-2 sm:mx-0">
+        <h1 className="text-base sm:text-xl font-bold text-foreground truncate leading-tight">
           {info.title}
         </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+        <p className="text-xs text-muted-foreground truncate hidden sm:block mt-0.5">
           {info.desc}
         </p>
       </div>
@@ -199,14 +214,14 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
         <button
           onClick={handleExport}
           title="Export backup data"
-          className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden sm:flex"
+          className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         >
           <Download className="w-4 h-4" />
         </button>
         <button
           onClick={handleImportClick}
           title="Import backup data"
-          className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground hidden sm:flex"
+          className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         >
           <Upload className="w-4 h-4" />
         </button>
