@@ -20,6 +20,12 @@ export const metadata: Metadata = {
     "Aplikasi manajemen kebun hortikultura (cabai, semangka, melon, dll) dan peternakan ayam terpadu",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
