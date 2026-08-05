@@ -39,10 +39,16 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("sidebar-collapsed") === "true";
-  });
+  // Always start as false on server to avoid hydration mismatch.
+  // Read localStorage only after mount on the client.
+  const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebar-collapsed") === "true";
+    setCollapsed(stored);
+    setMounted(true);
+  }, []);
 
   function toggleCollapsed() {
     const next = !collapsed;
@@ -134,13 +140,14 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           onClick={toggleCollapsed}
           className="flex items-center justify-center w-full py-2 rounded-xl text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors text-xs gap-2"
         >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
+          {/* Render placeholder until mounted to match server HTML */}
+          {!mounted || !collapsed ? (
             <>
               <ChevronLeft className="w-4 h-4" />
               <span>Ciutkan</span>
             </>
+          ) : (
+            <ChevronRight className="w-4 h-4" />
           )}
         </button>
       </div>

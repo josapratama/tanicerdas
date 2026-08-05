@@ -46,6 +46,7 @@ import type {
   UnsurHara,
   KonsepPupuk as KonsepPupukType,
 } from "@/lib/panduan";
+import { SectionHeader } from "@/components/ui/section-header";
 
 const dataPupuk = semuaPupuk;
 
@@ -91,30 +92,6 @@ const kategoriPenyakitWarna: Record<PenyakitPanduan["kategori"], string> = {
 };
 
 // ─── sub-components ───────────────────────────────────────────────────────────
-
-function SectionHeader({
-  icon: Icon,
-  title,
-  subtitle,
-  color,
-}: {
-  icon: React.ElementType;
-  title: string;
-  subtitle: string;
-  color: string;
-}) {
-  return (
-    <div className="flex items-start gap-4 mb-8">
-      <div className={`p-3 rounded-2xl ${color} shrink-0`}>
-        <Icon className="w-7 h-7" />
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">{title}</h2>
-        <p className="text-muted-foreground mt-1">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
 
 function PupukCard({
   p,

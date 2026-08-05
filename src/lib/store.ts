@@ -13,16 +13,6 @@ import {
   CatatanTanaman,
   PanenRecord,
 } from "./types";
-import {
-  mockTanaman,
-  mockKandang,
-  mockProduksiTelur,
-  mockPemberianPakan,
-  mockTransaksi,
-  mockInsidenPenyakit,
-  mockEventPlanner,
-  mockCatatanTanaman,
-} from "./mockData";
 
 // ─── Zustand Global Store ─────────────────────────────────────────────────────
 interface AppState {
@@ -50,15 +40,15 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      tanaman: mockTanaman,
-      catatanTanaman: mockCatatanTanaman,
+      tanaman: [],
+      catatanTanaman: [],
       panenRecord: [],
-      kandang: mockKandang,
-      produksiTelur: mockProduksiTelur,
-      pemberianPakan: mockPemberianPakan,
-      transaksi: mockTransaksi,
-      insidenPenyakit: mockInsidenPenyakit,
-      eventPlanner: mockEventPlanner,
+      kandang: [],
+      produksiTelur: [],
+      pemberianPakan: [],
+      transaksi: [],
+      insidenPenyakit: [],
+      eventPlanner: [],
       setTanaman: (data) => set({ tanaman: data }),
       setCatatanTanaman: (data) => set({ catatanTanaman: data }),
       setPanenRecord: (data) => set({ panenRecord: data }),

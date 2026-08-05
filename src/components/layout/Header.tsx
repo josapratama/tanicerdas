@@ -179,13 +179,14 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     e.target.value = "";
   }
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("id-ID", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const dateStr = mounted
+    ? new Date().toLocaleDateString("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
 
   return (
     <header className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-card border-b border-border">

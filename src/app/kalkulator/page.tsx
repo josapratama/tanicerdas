@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Calculator, Leaf, Bird, TrendingUp, RefreshCw } from "lucide-react";
+import { safeNumber, clampPositive } from "@/lib/utils";
 
 const tabs = [
   { id: "pupuk", label: "Pupuk Tanaman", icon: Leaf },
@@ -262,8 +263,8 @@ function KalkulatorPupuk() {
   const [jenisTanaman, setJenisTanaman] = useState("Cabai");
 
   // Clamp to positive
-  const luasNum = Math.max(0, Number(luas) || 0);
-  const jarakNum = Math.max(1, Number(jarak) || 50);
+  const luasNum = clampPositive(safeNumber(luas));
+  const jarakNum = Math.max(1, safeNumber(jarak, 50));
   const jumlahLubang = luasNum / ((jarakNum / 100) * (jarakNum / 100));
   const haLahan = luasNum / 10000;
 
@@ -390,7 +391,7 @@ function KalkulatorPupuk() {
           </div>
         </>
       ) : (
-        <div className="text-center py-10 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-muted/40 rounded-2xl">
           <Leaf className="w-10 h-10 mx-auto mb-2 opacity-30" />
           <p>Masukkan luas lahan untuk melihat kebutuhan pupuk</p>
         </div>
@@ -409,9 +410,8 @@ function KalkulatorPakan() {
 
   const dosisPakan = { petelur: 0.12, pedaging: 0.15, kampung: 0.08 };
   const dosis = dosisPakan[jenis];
-  // Clamp negatives
-  const n = Math.max(0, Number(jumlahAyam) || 0);
-  const harga = Math.max(0, Number(hargaPakan) || 7500);
+  const n = safeNumber(jumlahAyam);
+  const harga = Math.max(1, safeNumber(hargaPakan, 7500));
 
   const perHari = n * dosis;
   const perMinggu = perHari * 7;
@@ -453,7 +453,7 @@ function KalkulatorPakan() {
           min="0"
         />
       </div>
-      {n > 0 ? (
+      {jumlahAyam !== "" && n > 0 ? (
         <div className="space-y-3">
           <h4 className="font-semibold text-foreground">Kebutuhan Pakan</h4>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -493,7 +493,7 @@ function KalkulatorPakan() {
           </div>
         </div>
       ) : (
-        <div className="text-center py-10 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-muted/40 rounded-2xl">
           <Bird className="w-10 h-10 mx-auto mb-2 opacity-30" />
           <p>Masukkan jumlah ayam untuk kalkulasi pakan</p>
         </div>
@@ -511,11 +511,11 @@ function KalkulatorBEP() {
   const [produksi, setProduksi] = useState("");
 
   // Clamp to non-negative
-  const M = Math.max(0, Number(modal) || 0);
-  const B = Math.max(0, Number(biayaOp) || 0);
-  const BV = Math.max(0, Number(biayaVariabel) || 0);
-  const H = Math.max(0, Number(hargaJual) || 0);
-  const P = Math.max(0, Number(produksi) || 0);
+  const M = clampPositive(safeNumber(modal));
+  const B = clampPositive(safeNumber(biayaOp));
+  const BV = clampPositive(safeNumber(biayaVariabel));
+  const H = clampPositive(safeNumber(hargaJual));
+  const P = clampPositive(safeNumber(produksi));
 
   // Biaya tetap = modal + biaya operasional
   const biayaTetap = M + B;
@@ -680,7 +680,7 @@ function KalkulatorBEP() {
           )}
         </div>
       ) : (
-        <div className="text-center py-10 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-muted/40 rounded-2xl">
           <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-30" />
           <p>Isi data modal dan harga jual untuk kalkulasi BEP</p>
         </div>
@@ -696,7 +696,7 @@ function KonversiSatuan() {
     "berat",
   );
 
-  const n = Math.max(0, Number(nilai) || 0);
+  const n = clampPositive(safeNumber(nilai));
 
   const konversi = {
     berat: [
@@ -772,7 +772,7 @@ function KonversiSatuan() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-10 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-muted/40 rounded-2xl">
           <RefreshCw className="w-10 h-10 mx-auto mb-2 opacity-30" />
           <p>Masukkan nilai untuk konversi satuan</p>
         </div>
