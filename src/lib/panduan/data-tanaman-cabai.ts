@@ -500,10 +500,11 @@ export const cabaiMerah: PanduanTanaman = {
   ],
 
   penyakitUtama: [
-    "antraknosa-cabai",
-    "layu-fusarium",
-    "virus-kuning-cabai",
-    "thrips-cabai",
+    "pd-antraknosa",
+    "pd-layu-fusarium",
+    "pd-virus-kuning",
+    "pd-thrips",
+    "pd-busuk-phytophthora",
   ],
   pupukUtama: [
     "pupuk-urea",

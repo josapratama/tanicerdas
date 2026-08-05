@@ -335,7 +335,12 @@ export const timun: PanduanTanaman = {
     "Timun cocok untuk rotasi setelah cabai atau tomat karena kebutuhan hara berbeda.",
   ],
 
-  penyakitUtama: [],
+  penyakitUtama: [
+    "pd-embun-tepung",
+    "pd-antraknosa",
+    "pd-klorosis",
+    "pd-tungau-merah",
+  ],
   pupukUtama: [
     "pupuk-urea",
     "pupuk-npk-phonska",

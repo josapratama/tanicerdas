@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 import { Transaksi, TipeTransaksi, KategoriTransaksi } from "@/lib/types";
 import { useAppStore, generateId } from "@/lib/store";
-import { parseDate, formatShortDate, todayString } from "@/lib/utils";
+import {
+  parseDate,
+  formatShortDate,
+  todayString,
+  downloadCsv,
+} from "@/lib/utils";
 import {
   BarChart,
   Bar,
@@ -32,6 +37,7 @@ import { format, subMonths, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { id } from "date-fns/locale";
 import { showToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Modal } from "@/components/ui/modal";
 
 const kategoriConfig: Record<
   KategoriTransaksi,
@@ -94,7 +100,7 @@ export default function KeuanganPage() {
   );
   const [searchTransaksi, setSearchTransaksi] = useState("");
   const [form, setForm] = useState({
-    tanggal: format(new Date(), "yyyy-MM-dd"),
+    tanggal: "",
     tipe: "pemasukan" as TipeTransaksi,
     kategori: "penjualan_tanaman" as KategoriTransaksi,
     jumlah: "",
@@ -223,7 +229,7 @@ export default function KeuanganPage() {
   function openAdd() {
     setEditId(null);
     setForm({
-      tanggal: format(new Date(), "yyyy-MM-dd"),
+      tanggal: todayString(),
       tipe: "pemasukan",
       kategori: "penjualan_tanaman",
       jumlah: "",
@@ -291,7 +297,7 @@ export default function KeuanganPage() {
     setShowForm(false);
     setEditId(null);
     setForm({
-      tanggal: format(new Date(), "yyyy-MM-dd"),
+      tanggal: todayString(),
       tipe: "pemasukan",
       kategori: "penjualan_tanaman",
       jumlah: "",
@@ -308,22 +314,19 @@ export default function KeuanganPage() {
   }
 
   function exportCSV() {
-    const headers = ["Tanggal", "Tipe", "Kategori", "Jumlah", "Deskripsi"];
-    const rows = [...filteredTransaksi].map((t) => [
-      t.tanggal,
-      t.tipe,
-      kategoriConfig[t.kategori]?.label ?? t.kategori,
-      t.jumlah,
-      `"${t.deskripsi.replace(/"/g, '""')}"`,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `keuangan-${todayString()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const headers = ["Tanggal", "Tipe", "Kategori", "Jumlah", "Deskripsi"].join(
+      ",",
+    );
+    const rows = [...filteredTransaksi].map((t) =>
+      [
+        t.tanggal,
+        t.tipe,
+        kategoriConfig[t.kategori]?.label ?? t.kategori,
+        t.jumlah,
+        `"${t.deskripsi.replace(/"/g, '""')}"`,
+      ].join(","),
+    );
+    downloadCsv(`keuangan-${todayString()}.csv`, [headers], rows);
     showToast(
       `Export CSV berhasil (${filteredTransaksi.length} transaksi)`,
       "success",
@@ -333,37 +336,37 @@ export default function KeuanganPage() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-xl bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Total Pemasukan
             </span>
           </div>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-2xl font-extrabold text-green-600">
             Rp {pemasukan.toLocaleString("id")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Semua waktu</p>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 rounded-xl bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">
               <TrendingDown className="w-5 h-5" />
             </div>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Total Pengeluaran
             </span>
           </div>
-          <p className="text-2xl font-bold text-red-500">
+          <p className="text-2xl font-extrabold text-red-500">
             Rp {pengeluaran.toLocaleString("id")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Semua waktu</p>
         </div>
         <div
-          className={`border rounded-2xl p-5 shadow-sm ${laba >= 0 ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"}`}
+          className={`border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow ${laba >= 0 ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" : "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"}`}
         >
           <div className="flex items-center gap-3 mb-3">
             <div
@@ -371,10 +374,12 @@ export default function KeuanganPage() {
             >
               <Wallet className="w-5 h-5" />
             </div>
-            <span className="text-sm text-muted-foreground">Laba / Rugi</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Laba / Rugi
+            </span>
           </div>
           <p
-            className={`text-2xl font-bold ${laba >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600"}`}
+            className={`text-2xl font-extrabold ${laba >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600"}`}
           >
             {laba >= 0 ? "+" : "-"}Rp {Math.abs(laba).toLocaleString("id")}
           </p>
@@ -634,11 +639,34 @@ export default function KeuanganPage() {
                 className="px-3 py-1.5 rounded-xl border border-input bg-background text-xs flex-1 sm:flex-none"
               >
                 <option value="semua">Semua Kategori</option>
-                {kategoriOptions.map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v.label}
-                  </option>
-                ))}
+                {filterTipe === "semua" ? (
+                  <>
+                    <optgroup label="── Pemasukan ──">
+                      {Object.entries(kategoriConfig)
+                        .filter(([, v]) => v.tipe === "pemasukan")
+                        .map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {v.emoji} {v.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="── Pengeluaran ──">
+                      {Object.entries(kategoriConfig)
+                        .filter(([, v]) => v.tipe === "pengeluaran")
+                        .map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {v.emoji} {v.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  </>
+                ) : (
+                  kategoriOptions.map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.emoji} {v.label}
+                    </option>
+                  ))
+                )}
               </select>
               {filterPeriode !== "semua" && (
                 <div className="flex gap-3 text-xs ml-auto">
@@ -713,131 +741,134 @@ export default function KeuanganPage() {
       )}
 
       {/* Modal Tambah/Edit Transaksi */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-2xl p-4 sm:p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-foreground">
-                {editId ? "Edit Transaksi" : "Tambah Transaksi"}
-              </h3>
-              <button onClick={() => setShowForm(false)}>
-                <X className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Tipe
-                  </label>
-                  <select
-                    value={form.tipe}
-                    onChange={(e) => {
-                      const tipe = e.target.value as TipeTransaksi;
-                      const firstKat = Object.entries(kategoriConfig).find(
-                        ([, v]) => v.tipe === tipe,
-                      )?.[0] as KategoriTransaksi;
-                      setForm({ ...form, tipe, kategori: firstKat });
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                  >
-                    <option value="pemasukan">Pemasukan</option>
-                    <option value="pengeluaran">Pengeluaran</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Tanggal
-                  </label>
-                  <input
-                    type="date"
-                    value={form.tanggal}
-                    onChange={(e) =>
-                      setForm({ ...form, tanggal: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Kategori
-                </label>
-                <select
-                  value={form.kategori}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      kategori: e.target.value as KategoriTransaksi,
-                    })
+      <Modal
+        open={showForm}
+        title={editId ? "Edit Transaksi" : "Tambah Transaksi"}
+        onClose={() => {
+          setShowForm(false);
+          setEditId(null);
+          setErrors({});
+          setForm({
+            tanggal: todayString(),
+            tipe: "pemasukan",
+            kategori: "penjualan_tanaman",
+            jumlah: "",
+            deskripsi: "",
+          });
+        }}
+      >
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Tipe
+              </label>
+              <select
+                value={form.tipe}
+                onChange={(e) => {
+                  const tipe = e.target.value as TipeTransaksi;
+                  const firstKat = Object.entries(kategoriConfig).find(
+                    ([, v]) => v.tipe === tipe,
+                  )?.[0] as KategoriTransaksi | undefined;
+                  if (firstKat) {
+                    setForm({ ...form, tipe, kategori: firstKat });
+                  } else {
+                    setForm({ ...form, tipe });
                   }
-                  className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                >
-                  {Object.entries(kategoriConfig)
-                    .filter(([, v]) => v.tipe === form.tipe)
-                    .map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v.emoji} {v.label}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Jumlah (Rp) *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="500000"
-                  value={form.jumlah}
-                  onChange={(e) => {
-                    setForm({ ...form, jumlah: e.target.value });
-                    setErrors({ ...errors, jumlah: "" });
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${errors.jumlah ? "border-red-400" : "border-input"}`}
-                />
-                {errors.jumlah && (
-                  <p className="text-xs text-red-500 mt-1">{errors.jumlah}</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Deskripsi *
-                </label>
-                <input
-                  placeholder="cth: Penjualan cabai merah 50 kg"
-                  value={form.deskripsi}
-                  onChange={(e) => {
-                    setForm({ ...form, deskripsi: e.target.value });
-                    setErrors({ ...errors, deskripsi: "" });
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${errors.deskripsi ? "border-red-400" : "border-input"}`}
-                />
-                {errors.deskripsi && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {errors.deskripsi}
-                  </p>
-                )}
-              </div>
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
+              >
+                <option value="pemasukan">Pemasukan</option>
+                <option value="pengeluaran">Pengeluaran</option>
+              </select>
             </div>
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={handleSave}
-                className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90"
-              >
-                {editId ? "Simpan Perubahan" : "Tambah"}
-              </button>
-              <button
-                onClick={() => setShowForm(false)}
-                className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
-              >
-                Batal
-              </button>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Tanggal
+              </label>
+              <input
+                type="date"
+                value={form.tanggal}
+                onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
+              />
             </div>
           </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Kategori
+            </label>
+            <select
+              value={form.kategori}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  kategori: e.target.value as KategoriTransaksi,
+                })
+              }
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
+            >
+              {Object.entries(kategoriConfig)
+                .filter(([, v]) => v.tipe === form.tipe)
+                .map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v.emoji} {v.label}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Jumlah (Rp) *
+            </label>
+            <input
+              type="number"
+              min="1"
+              placeholder="500000"
+              value={form.jumlah}
+              onChange={(e) => {
+                setForm({ ...form, jumlah: e.target.value });
+                setErrors({ ...errors, jumlah: "" });
+              }}
+              className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${errors.jumlah ? "border-red-400" : "border-input"}`}
+            />
+            {errors.jumlah && (
+              <p className="text-xs text-red-500 mt-1">{errors.jumlah}</p>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Deskripsi *
+            </label>
+            <input
+              placeholder="cth: Penjualan cabai merah 50 kg"
+              value={form.deskripsi}
+              onChange={(e) => {
+                setForm({ ...form, deskripsi: e.target.value });
+                setErrors({ ...errors, deskripsi: "" });
+              }}
+              className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${errors.deskripsi ? "border-red-400" : "border-input"}`}
+            />
+            {errors.deskripsi && (
+              <p className="text-xs text-red-500 mt-1">{errors.deskripsi}</p>
+            )}
+          </div>
         </div>
-      )}
+        <div className="flex gap-3 mt-5">
+          <button
+            onClick={handleSave}
+            className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90"
+          >
+            {editId ? "Simpan Perubahan" : "Tambah"}
+          </button>
+          <button
+            onClick={() => setShowForm(false)}
+            className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
+          >
+            Batal
+          </button>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={confirmDeleteId !== null}

@@ -82,3 +82,24 @@ export function isNonNegativeNumber(val: string): boolean {
   const n = Number(val);
   return !isNaN(n) && n >= 0;
 }
+
+// ─── CSV export helper ────────────────────────────────────────────────────────
+/**
+ * Build CSV content from headers + rows and trigger a browser download.
+ * Replaces the copy-pasted Blob → createObjectURL → anchor pattern
+ * that appeared in kebun, ternak, and keuangan pages.
+ */
+export function downloadCsv(
+  filename: string,
+  headers: string[],
+  rows: (string | number)[],
+): void {
+  const csv = [headers, ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

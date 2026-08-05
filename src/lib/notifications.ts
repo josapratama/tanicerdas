@@ -1,6 +1,6 @@
 import { useAppStore } from "./store";
 import { todayString, parseDate } from "./utils";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, startOfDay } from "date-fns";
 
 export interface Notification {
   id: string;
@@ -18,7 +18,8 @@ export function getNotifications(): Notification[] {
   const state = useAppStore.getState();
   const notifs: Notification[] = [];
   const today = todayString();
-  const todayDate = new Date();
+  // Bug fix: pakai startOfDay agar diff === 0 sepanjang hari, bukan hanya di jam 00:00
+  const todayDate = startOfDay(new Date());
 
   // 1. Kandang kritis / perlu perhatian
   state.kandang.forEach((k) => {

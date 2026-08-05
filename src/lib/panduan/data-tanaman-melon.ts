@@ -454,7 +454,12 @@ export const melon: PanduanTanaman = {
     "Periksa refraktometer saat panen: Brix ≥ 12° = premium, ≥ 14° = sangat premium.",
   ],
 
-  penyakitUtama: [],
+  penyakitUtama: [
+    "pd-antraknosa",
+    "pd-embun-tepung",
+    "pd-busuk-phytophthora",
+    "pd-tungau-merah",
+  ],
   pupukUtama: [
     "pupuk-npk-mutiara",
     "pupuk-npk-phonska",

@@ -2,7 +2,7 @@
 // PANDUAN PERTANIAN — Re-export semua tipe dan data
 // ============================================================
 
-// Re-export semua tipe
+// Re-export semua tipe (digabung dalam satu blok)
 export type {
   PupukData,
   AgrokimiaData,
@@ -12,7 +12,23 @@ export type {
   PengobatanStep,
   KategoriPupuk,
   KategoriAgrokimia,
+  PanduanTanaman,
+  FaseTumbuh,
+  JadwalPupuk,
 } from "./types";
+
+export type {
+  EntriGlosarium,
+  UnsurHara,
+  KonsepPupuk,
+} from "./data-tanaman-umum";
+
+export type {
+  PenyakitTernak,
+  TataCaraTernak,
+  LangkahTernak,
+  ObatVaksinTernak,
+} from "./data-ternak";
 
 // Re-export data
 export { dataPupukOrganik } from "./data-pupuk-organik";
@@ -28,22 +44,25 @@ export {
   dataTataCaraTernak,
   dataObatVaksin,
 } from "./data-ternak";
-export type {
-  PenyakitTernak,
-  TataCaraTernak,
-  LangkahTernak,
-  ObatVaksinTernak,
-} from "./data-ternak";
 export { dataPanduanTanaman } from "./data-tanaman";
-export type { PanduanTanaman, FaseTumbuh, JadwalPupuk } from "./types";
+export {
+  cabaiMerah,
+  melon,
+  semangka,
+  timun,
+  tomat,
+  terong,
+  jagungManis,
+  kangkung,
+  bayam,
+  paria,
+  labuSiam,
+  singkong,
+  ubiJalar,
+} from "./data-tanaman";
 
 // Data umum bertani — glosarium, unsur hara, konsep pupuk
 export { glosariumUmum, dataUnsurHara, konsepPupuk } from "./data-tanaman-umum";
-export type {
-  EntriGlosarium,
-  UnsurHara,
-  KonsepPupuk,
-} from "./data-tanaman-umum";
 
 // Computed / convenience exports
 import { dataPupukOrganik } from "./data-pupuk-organik";

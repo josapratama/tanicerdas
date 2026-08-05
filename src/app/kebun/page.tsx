@@ -16,10 +16,17 @@ import {
   Sprout,
   Trash2,
 } from "lucide-react";
-import { Tanaman, FaseTanaman, CatatanTanaman, PanenRecord } from "@/lib/types";
+import {
+  Tanaman,
+  FaseTanaman,
+  CatatanTanaman,
+  PanenRecord,
+  Transaksi,
+  KategoriTransaksi,
+} from "@/lib/types";
 import { useAppStore, generateId } from "@/lib/store";
-import { formatShortDate } from "@/lib/utils";
-import { format } from "date-fns";
+import { formatShortDate, todayString, downloadCsv } from "@/lib/utils";
+import { Modal } from "@/components/ui/modal";
 import { showToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -74,14 +81,18 @@ const kondisiLabel = {
 
 const JENIS_TANAMAN_OPTIONS = [
   "Cabai",
-  "Semangka",
-  "Melon",
   "Tomat",
   "Terong",
+  "Semangka",
+  "Melon",
   "Timun",
-  "Paria",
-  "Labu",
-  "Jagung",
+  "Paria / Pare",
+  "Labu Siam",
+  "Jagung Manis",
+  "Kangkung",
+  "Bayam",
+  "Singkong",
+  "Ubi Jalar",
   "Lainnya",
 ];
 
@@ -90,12 +101,12 @@ const emptyTanamanForm = () => ({
   jenisTanaman: "Cabai",
   varietas: "",
   fase: "semai" as FaseTanaman,
-  tanggalSemai: format(new Date(), "yyyy-MM-dd"),
+  tanggalSemai: "",
   luasLahan: "",
   lokasiKebun: "",
 });
 const emptyCatatanForm = () => ({
-  tanggal: format(new Date(), "yyyy-MM-dd"),
+  tanggal: "",
   tinggi: "",
   kondisi: "sehat" as CatatanTanaman["kondisi"],
   catatan: "",
@@ -110,6 +121,10 @@ export default function KebunPage() {
   const setCatatan = useAppStore((s) => s.setCatatanTanaman);
   const panenList = useAppStore((s) => s.panenRecord);
   const setPanenList = useAppStore((s) => s.setPanenRecord);
+  const insidenList = useAppStore((s) => s.insidenPenyakit);
+  const setInsidenList = useAppStore((s) => s.setInsidenPenyakit);
+  const transaksi = useAppStore((s) => s.transaksi);
+  const setTransaksi = useAppStore((s) => s.setTransaksi);
 
   // ─── UI State ─────────────────────────────────────────────────────────────
   const [filterFase, setFilterFase] = useState<FaseTanaman | "semua">("semua");
@@ -132,8 +147,11 @@ export default function KebunPage() {
   const [showPanenForm, setShowPanenForm] = useState(false);
   const [panenTanamanId, setPanenTanamanId] = useState<string | null>(null);
   const [panenErrors, setPanenErrors] = useState<Record<string, string>>({});
+  const [confirmDeletePanenId, setConfirmDeletePanenId] = useState<
+    string | null
+  >(null);
   const [panenForm, setPanenForm] = useState({
-    tanggal: format(new Date(), "yyyy-MM-dd"),
+    tanggal: "",
     beratKg: "",
     hargaPerKg: "",
     catatan: "",
@@ -191,9 +209,13 @@ export default function KebunPage() {
   }, [tanaman, catatan, panenList]);
 
   const selected = tanaman.find((t) => t.id === selectedId);
-  const selectedCatatan = catatan
-    .filter((c) => c.tanamanId === selectedId)
-    .sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+  const selectedCatatan = useMemo(
+    () =>
+      catatan
+        .filter((c) => c.tanamanId === selectedId)
+        .sort((a, b) => b.tanggal.localeCompare(a.tanggal)),
+    [catatan, selectedId],
+  );
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   function openAddTanaman() {
@@ -252,7 +274,7 @@ export default function KebunPage() {
         varietas: form.varietas,
         fase: form.fase,
         tanggalSemai: form.tanggalSemai,
-        luasLahan: luas || 100,
+        luasLahan: isNaN(luas) || luas <= 0 ? 100 : luas,
         lokasiKebun: form.lokasiKebun,
         catatan: [],
         createdAt: new Date().toISOString(),
@@ -269,8 +291,13 @@ export default function KebunPage() {
     if (!confirmDeleteId) return;
     setTanaman(tanaman.filter((t) => t.id !== confirmDeleteId));
     setCatatan(catatan.filter((c) => c.tanamanId !== confirmDeleteId));
-    // Bug fix: hapus juga data panen terkait
     setPanenList(panenList.filter((p) => p.tanamanId !== confirmDeleteId));
+    // Hapus insiden penyakit terkait agar tidak orphan
+    setInsidenList(
+      insidenList.filter(
+        (i) => !(i.targetId === confirmDeleteId && i.targetTipe === "tanaman"),
+      ),
+    );
     if (selectedId === confirmDeleteId) setSelectedId(null);
     setConfirmDeleteId(null);
     showToast("Tanaman berhasil dihapus", "success");
@@ -349,7 +376,7 @@ export default function KebunPage() {
   function openPanen(tId: string) {
     setPanenTanamanId(tId);
     setPanenForm({
-      tanggal: format(new Date(), "yyyy-MM-dd"),
+      tanggal: todayString(),
       beratKg: "",
       hargaPerKg: "",
       catatan: "",
@@ -378,11 +405,31 @@ export default function KebunPage() {
       createdAt: new Date().toISOString(),
     };
     setPanenList([...panenList, record]);
+    // Otomatis tambah transaksi penjualan ke keuangan
+    const tNama = tanaman.find((t) => t.id === panenTanamanId)?.nama ?? "Panen";
+    const newTx: Transaksi = {
+      id: generateId(),
+      tanggal: panenForm.tanggal,
+      tipe: "pemasukan",
+      kategori: "penjualan_tanaman" as KategoriTransaksi,
+      jumlah: Math.round(berat * harga),
+      deskripsi: `Panen ${tNama} – ${berat} kg @ Rp ${harga.toLocaleString("id")}/kg`,
+      createdAt: new Date().toISOString(),
+    };
+    setTransaksi([...transaksi, newTx]);
     setShowPanenForm(false);
+    setPanenTanamanId(null);
     showToast(
-      `Panen ${berat} kg dicatat · Rp ${(berat * harga).toLocaleString("id")}`,
+      `Panen ${berat} kg dicatat · Rp ${(berat * harga).toLocaleString("id")} ditambah ke Keuangan`,
       "success",
     );
+  }
+
+  function doDeletePanen() {
+    if (!confirmDeletePanenId) return;
+    setPanenList(panenList.filter((p) => p.id !== confirmDeletePanenId));
+    setConfirmDeletePanenId(null);
+    showToast("Data panen dihapus", "success");
   }
 
   function exportKebunCSV() {
@@ -394,24 +441,19 @@ export default function KebunPage() {
       "Lokasi",
       "Luas (m²)",
       "Tanggal Semai",
-    ];
-    const rows = tanaman.map((t) => [
-      `"${t.jenisTanaman ?? ""}"`,
-      `"${t.nama}"`,
-      `"${t.varietas}"`,
-      faseLabel[t.fase],
-      `"${t.lokasiKebun}"`,
-      t.luasLahan,
-      t.tanggalSemai,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `kebun-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    ].join(",");
+    const rows = tanaman.map((t) =>
+      [
+        `"${t.jenisTanaman ?? ""}"`,
+        `"${t.nama}"`,
+        `"${t.varietas}"`,
+        faseLabel[t.fase],
+        `"${t.lokasiKebun}"`,
+        t.luasLahan,
+        t.tanggalSemai,
+      ].join(","),
+    );
+    downloadCsv(`kebun-${todayString()}.csv`, [headers], rows);
     showToast("Export CSV berhasil", "success");
   }
 
@@ -423,7 +465,7 @@ export default function KebunPage() {
       "Harga/kg",
       "Total (Rp)",
       "Catatan",
-    ];
+    ].join(",");
     const rows = panenList.map((p) => {
       const t = tanaman.find((t) => t.id === p.tanamanId);
       return [
@@ -433,16 +475,9 @@ export default function KebunPage() {
         p.hargaPerKg,
         p.beratKg * p.hargaPerKg,
         `"${(p.catatan ?? "").replace(/"/g, '""')}"`,
-      ];
+      ].join(",");
     });
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `panen-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`panen-${todayString()}.csv`, [headers], rows);
     showToast("Export CSV panen berhasil", "success");
   }
 
@@ -688,7 +723,7 @@ export default function KebunPage() {
                 >
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
-                {t.fase === "panen" && (
+                {(t.fase === "panen" || t.fase === "berbuah") && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -814,6 +849,13 @@ export default function KebunPage() {
                             Rp {p.hargaPerKg.toLocaleString("id")}/kg
                           </p>
                         </div>
+                        <button
+                          onClick={() => setConfirmDeletePanenId(p.id)}
+                          className="ml-2 p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors self-center"
+                          title="Hapus panen"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                 </div>
@@ -994,278 +1036,268 @@ export default function KebunPage() {
       )}
 
       {/* Modal Tambah/Edit Tanaman */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-2xl p-4 sm:p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-foreground">
-                {editTanamanId ? "Edit Tanaman" : "Tambah Tanaman Baru"}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setFormErrors({});
-                }}
-              >
-                <X className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {/* Jenis Tanaman — dropdown */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Jenis Tanaman *
-                </label>
-                <select
-                  value={form.jenisTanaman}
-                  onChange={(e) =>
-                    setForm({ ...form, jenisTanaman: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                >
-                  {JENIS_TANAMAN_OPTIONS.map((j) => (
-                    <option key={j} value={j}>
-                      {j}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {[
-                {
-                  label: "Nama Tanaman *",
-                  field: "nama",
-                  placeholder: "cth: Semangka Blok A / Melon Blok B",
-                },
-                {
-                  label: "Varietas *",
-                  field: "varietas",
-                  placeholder: "cth: Semangka Non-Biji, Melon Golden",
-                },
-                {
-                  label: "Lokasi Kebun *",
-                  field: "lokasiKebun",
-                  placeholder: "cth: Kebun Utara",
-                },
-              ].map(({ label, field, placeholder }) => (
-                <div key={field}>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    {label}
-                  </label>
-                  <input
-                    placeholder={placeholder}
-                    value={form[field as keyof typeof form] as string}
-                    onChange={(e) => {
-                      setForm({ ...form, [field]: e.target.value });
-                      setFormErrors({ ...formErrors, [field]: "" });
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${formErrors[field] ? "border-red-400" : "border-input"}`}
-                  />
-                  {formErrors[field] && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {formErrors[field]}
-                    </p>
-                  )}
-                </div>
+      <Modal
+        open={showForm}
+        title={editTanamanId ? "Edit Tanaman" : "Tambah Tanaman Baru"}
+        onClose={() => {
+          setShowForm(false);
+          setEditTanamanId(null);
+          setFormErrors({});
+          setForm(emptyTanamanForm());
+        }}
+      >
+        <div className="space-y-3">
+          {/* Jenis Tanaman — dropdown */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Jenis Tanaman *
+            </label>
+            <select
+              value={form.jenisTanaman}
+              onChange={(e) =>
+                setForm({ ...form, jenisTanaman: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
+            >
+              {JENIS_TANAMAN_OPTIONS.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
               ))}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Fase Awal
-                  </label>
-                  <select
-                    value={form.fase}
-                    onChange={(e) =>
-                      setForm({ ...form, fase: e.target.value as FaseTanaman })
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                  >
-                    {faseList.map((f) => (
-                      <option key={f} value={f}>
-                        {faseLabel[f]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Luas (m²)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="100"
-                    value={form.luasLahan}
-                    onChange={(e) =>
-                      setForm({ ...form, luasLahan: e.target.value })
-                    }
-                    className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${formErrors.luasLahan ? "border-red-400" : "border-input"}`}
-                  />
-                  {formErrors.luasLahan && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {formErrors.luasLahan}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Tanggal Semai
-                </label>
-                <input
-                  type="date"
-                  value={form.tanggalSemai}
-                  onChange={(e) =>
-                    setForm({ ...form, tanggalSemai: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={handleSaveTanaman}
-                className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90"
-              >
-                {editTanamanId ? "Simpan Perubahan" : "Simpan"}
-              </button>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setFormErrors({});
+            </select>
+          </div>
+          {[
+            {
+              label: "Nama Tanaman *",
+              field: "nama",
+              placeholder: "cth: Semangka Blok A / Melon Blok B",
+            },
+            {
+              label: "Varietas *",
+              field: "varietas",
+              placeholder: "cth: Semangka Non-Biji, Melon Golden",
+            },
+            {
+              label: "Lokasi Kebun *",
+              field: "lokasiKebun",
+              placeholder: "cth: Kebun Utara",
+            },
+          ].map(({ label, field, placeholder }) => (
+            <div key={field}>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {label}
+              </label>
+              <input
+                placeholder={placeholder}
+                value={form[field as keyof typeof form] as string}
+                onChange={(e) => {
+                  setForm({ ...form, [field]: e.target.value });
+                  setFormErrors({ ...formErrors, [field]: "" });
                 }}
-                className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
+                className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${formErrors[field] ? "border-red-400" : "border-input"}`}
+              />
+              {formErrors[field] && (
+                <p className="text-xs text-red-500 mt-1">{formErrors[field]}</p>
+              )}
+            </div>
+          ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Fase Awal
+              </label>
+              <select
+                value={form.fase}
+                onChange={(e) =>
+                  setForm({ ...form, fase: e.target.value as FaseTanaman })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
               >
-                Batal
-              </button>
+                {faseList.map((f) => (
+                  <option key={f} value={f}>
+                    {faseLabel[f]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Luas (m²)
+              </label>
+              <input
+                type="number"
+                min="1"
+                placeholder="100"
+                value={form.luasLahan}
+                onChange={(e) =>
+                  setForm({ ...form, luasLahan: e.target.value })
+                }
+                className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${formErrors.luasLahan ? "border-red-400" : "border-input"}`}
+              />
+              {formErrors.luasLahan && (
+                <p className="text-xs text-red-500 mt-1">
+                  {formErrors.luasLahan}
+                </p>
+              )}
             </div>
           </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Tanggal Semai
+            </label>
+            <input
+              type="date"
+              value={form.tanggalSemai}
+              onChange={(e) =>
+                setForm({ ...form, tanggalSemai: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
+            />
+          </div>
         </div>
-      )}
+        <div className="flex gap-3 mt-5">
+          <button
+            onClick={handleSaveTanaman}
+            className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90"
+          >
+            {editTanamanId ? "Simpan Perubahan" : "Simpan"}
+          </button>
+          <button
+            onClick={() => {
+              setShowForm(false);
+              setEditTanamanId(null);
+              setFormErrors({});
+              setForm(emptyTanamanForm());
+            }}
+            className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
+          >
+            Batal
+          </button>
+        </div>
+      </Modal>
 
       {/* Modal Catat Panen */}
-      {showPanenForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-2xl p-4 sm:p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-foreground">Catat Hasil Panen</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {tanaman.find((t) => t.id === panenTanamanId)?.nama}
+      <Modal
+        open={showPanenForm}
+        title="Catat Hasil Panen"
+        onClose={() => {
+          setShowPanenForm(false);
+          setPanenTanamanId(null);
+          setPanenErrors({});
+        }}
+      >
+        <p className="text-xs text-muted-foreground -mt-2 mb-3">
+          {tanaman.find((t) => t.id === panenTanamanId)?.nama}
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Tanggal Panen
+            </label>
+            <input
+              type="date"
+              value={panenForm.tanggal}
+              onChange={(e) =>
+                setPanenForm({ ...panenForm, tanggal: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Berat (kg) *
+              </label>
+              <input
+                type="number"
+                min="0.1"
+                step="0.1"
+                placeholder="50"
+                value={panenForm.beratKg}
+                onChange={(e) => {
+                  setPanenForm({ ...panenForm, beratKg: e.target.value });
+                  setPanenErrors({ ...panenErrors, beratKg: "" });
+                }}
+                className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${panenErrors.beratKg ? "border-red-400" : "border-input"}`}
+              />
+              {panenErrors.beratKg && (
+                <p className="text-xs text-red-500 mt-1">
+                  {panenErrors.beratKg}
                 </p>
-              </div>
-              <button onClick={() => setShowPanenForm(false)}>
-                <X className="w-5 h-5 text-muted-foreground" />
-              </button>
+              )}
             </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Tanggal Panen
-                </label>
-                <input
-                  type="date"
-                  value={panenForm.tanggal}
-                  onChange={(e) =>
-                    setPanenForm({ ...panenForm, tanggal: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Berat (kg) *
-                  </label>
-                  <input
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    placeholder="50"
-                    value={panenForm.beratKg}
-                    onChange={(e) => {
-                      setPanenForm({ ...panenForm, beratKg: e.target.value });
-                      setPanenErrors({ ...panenErrors, beratKg: "" });
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${panenErrors.beratKg ? "border-red-400" : "border-input"}`}
-                  />
-                  {panenErrors.beratKg && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {panenErrors.beratKg}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                    Harga/kg (Rp) *
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="25000"
-                    value={panenForm.hargaPerKg}
-                    onChange={(e) => {
-                      setPanenForm({
-                        ...panenForm,
-                        hargaPerKg: e.target.value,
-                      });
-                      setPanenErrors({ ...panenErrors, hargaPerKg: "" });
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${panenErrors.hargaPerKg ? "border-red-400" : "border-input"}`}
-                  />
-                  {panenErrors.hargaPerKg && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {panenErrors.hargaPerKg}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {panenForm.beratKg &&
-                panenForm.hargaPerKg &&
-                Number(panenForm.beratKg) > 0 &&
-                Number(panenForm.hargaPerKg) > 0 && (
-                  <div className="px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                    <p className="text-xs text-muted-foreground">
-                      Estimasi Nilai
-                    </p>
-                    <p className="text-lg font-bold text-green-600">
-                      Rp{" "}
-                      {(
-                        Number(panenForm.beratKg) * Number(panenForm.hargaPerKg)
-                      ).toLocaleString("id")}
-                    </p>
-                  </div>
-                )}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Catatan (opsional)
-                </label>
-                <input
-                  placeholder="cth: Kualitas baik, ukuran besar"
-                  value={panenForm.catatan}
-                  onChange={(e) =>
-                    setPanenForm({ ...panenForm, catatan: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={handleSavePanen}
-                className="flex-1 py-2.5 bg-green-600 text-white rounded-xl font-medium text-sm hover:bg-green-700"
-              >
-                Simpan
-              </button>
-              <button
-                onClick={() => setShowPanenForm(false)}
-                className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
-              >
-                Batal
-              </button>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Harga/kg (Rp) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="25000"
+                value={panenForm.hargaPerKg}
+                onChange={(e) => {
+                  setPanenForm({
+                    ...panenForm,
+                    hargaPerKg: e.target.value,
+                  });
+                  setPanenErrors({ ...panenErrors, hargaPerKg: "" });
+                }}
+                className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${panenErrors.hargaPerKg ? "border-red-400" : "border-input"}`}
+              />
+              {panenErrors.hargaPerKg && (
+                <p className="text-xs text-red-500 mt-1">
+                  {panenErrors.hargaPerKg}
+                </p>
+              )}
             </div>
           </div>
+          {panenForm.beratKg &&
+            panenForm.hargaPerKg &&
+            Number(panenForm.beratKg) > 0 &&
+            Number(panenForm.hargaPerKg) > 0 && (
+              <div className="px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                <p className="text-xs text-muted-foreground">Estimasi Nilai</p>
+                <p className="text-lg font-bold text-green-600">
+                  Rp{" "}
+                  {(
+                    Number(panenForm.beratKg) * Number(panenForm.hargaPerKg)
+                  ).toLocaleString("id")}
+                </p>
+              </div>
+            )}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Catatan (opsional)
+            </label>
+            <input
+              placeholder="cth: Kualitas baik, ukuran besar"
+              value={panenForm.catatan}
+              onChange={(e) =>
+                setPanenForm({ ...panenForm, catatan: e.target.value })
+              }
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm"
+            />
+          </div>
         </div>
-      )}
+        <div className="flex gap-3 mt-5">
+          <button
+            onClick={handleSavePanen}
+            className="flex-1 py-2.5 bg-green-600 text-white rounded-xl font-medium text-sm hover:bg-green-700"
+          >
+            Simpan
+          </button>
+          <button
+            onClick={() => {
+              setShowPanenForm(false);
+              setPanenTanamanId(null);
+              setPanenErrors({});
+            }}
+            className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm"
+          >
+            Batal
+          </button>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={confirmDeleteId !== null}
@@ -1280,6 +1312,13 @@ export default function KebunPage() {
         message="Yakin hapus catatan ini?"
         onConfirm={doDeleteCatatan}
         onCancel={() => setConfirmDeleteCatatanId(null)}
+      />
+      <ConfirmDialog
+        open={confirmDeletePanenId !== null}
+        title="Hapus Data Panen"
+        message="Yakin hapus data panen ini? Aksi ini tidak bisa dibatalkan."
+        onConfirm={doDeletePanen}
+        onCancel={() => setConfirmDeletePanenId(null)}
       />
     </div>
   );
